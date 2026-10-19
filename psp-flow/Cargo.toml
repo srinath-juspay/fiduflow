@@ -1,0 +1,15 @@
+[package]
+name = "psp_flow"
+edition.workspace = true
+version.workspace = true
+description = "UPI PSP pay flow as a first-order state machine: entity, events, step. Pure, no deps, Aeneas-translatable."
+
+[features]
+default = []
+# Debug/PartialEq derives are only needed by the runtime and tests; kept off for Charon.
+runtime = []
+
+[dependencies]
+
+[package.metadata.charon]
+# `charon cargo` reads these; keeps the translated surface small.

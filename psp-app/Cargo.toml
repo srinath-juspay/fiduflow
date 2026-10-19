@@ -1,0 +1,12 @@
+[package]
+name = "psp-app"
+edition.workspace = true
+version.workspace = true
+description = "The UPI pay flow bound to the framework: Flow impl, the application's tables, demo and tests."
+
+[dependencies]
+psp_flow = { path = "../psp-flow", features = ["runtime"] }
+psp-machine-framework = { path = "../psp-machine-framework" }
+psp-store-framework = { path = "../psp-store-framework" }
+psp-driver-framework = { path = "../psp-driver-framework" }
+rusqlite = { workspace = true }

@@ -1,0 +1,9 @@
+[package]
+name = "psp-driver-framework"
+edition.workspace = true
+version.workspace = true
+description = "Domain-agnostic driver: save before every wait, load on every response, one transaction per response."
+
+[dependencies]
+psp-machine-framework = { path = "../psp-machine-framework" }
+psp-store-framework = { path = "../psp-store-framework", default-features = false }

@@ -1,0 +1,10 @@
+[workspace]
+resolver = "2"
+members = ["psp-flow", "psp-machine-framework", "psp-store-framework", "psp-driver-framework", "psp-app"]
+
+[workspace.package]
+edition = "2021"
+version = "0.1.0"
+
+[workspace.dependencies]
+rusqlite = { version = "0.31", features = ["bundled"] }
