@@ -1,0 +1,8 @@
+[package]
+name = "driver-framework"
+edition.workspace = true
+version.workspace = true
+description = "Domain-agnostic flow runtime: the Flow abstraction, the Persist contract, and the Driver that saves before every wait and loads on every response."
+
+[dependencies]
+store-framework = { path = "../store-framework", default-features = false }

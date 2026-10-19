@@ -1,6 +1,6 @@
 [workspace]
 resolver = "2"
-members = ["psp-flow", "psp-machine-framework", "psp-store-framework", "psp-driver-framework", "psp-app"]
+members = ["psp-flow", "store-framework", "driver-framework", "psp-app"]
 
 [workspace.package]
 edition = "2021"

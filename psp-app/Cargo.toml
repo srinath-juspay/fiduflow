@@ -6,7 +6,6 @@ description = "The UPI pay flow bound to the framework: Flow impl, the applicati
 
 [dependencies]
 psp_flow = { path = "../psp-flow", features = ["runtime"] }
-psp-machine-framework = { path = "../psp-machine-framework" }
-psp-store-framework = { path = "../psp-store-framework" }
-psp-driver-framework = { path = "../psp-driver-framework" }
+store-framework = { path = "../store-framework" }
+driver-framework = { path = "../driver-framework" }
 rusqlite = { workspace = true }

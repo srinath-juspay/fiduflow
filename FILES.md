@@ -12,7 +12,14 @@ The first spike (loan onboarding, in-memory, `bp-core` + `loan-*`) lives in
 ## Workspace root
 
 ### `Cargo.toml`
-The workspace manifest: the five Rust crates, with `rusqlite` pinned for everyone.
+The workspace manifest: the four Rust crates, with `rusqlite` pinned for everyone.
+
+### `PSP_FLOW.md`
+The requirements: the parties, the entity lifecycle, the interactions with their response
+types, the subflows and the inlined tree in the interaction-tree notation, the seven paths,
+the properties P1 to P6 as requirements, the persistence contract, what is deferred, and a
+table mapping each requirement to the file, test or theorem that discharges it. Read this
+before the code.
 
 ### `README.md`, `FILES.md`
 Orientation and this guide.
@@ -89,58 +96,48 @@ arrives, and calls `deliver`. Nothing else ever runs.
 
 ---
 
-## `psp-machine-framework`: what a flow is (domain-agnostic)
+## `store-framework`: storage (domain-agnostic)
 
-### `psp-machine-framework/Cargo.toml`
-No dependencies.
+### `store-framework/Cargo.toml`
+No dependencies except `rusqlite` behind the default `sqlite` feature, so a deployment
+with another database can turn it off.
 
-### `psp-machine-framework/src/lib.rs`
-Three definitions and nothing else. `Flow` is the trait a `#[flow]` macro would implement
-for a generated machine: a bookmark type `State`, a terminal value `Done`, the `Event` and
-`Response` types, a `Violation` type, and the two pure functions `event` and `step`.
-`Next` is what `step` returns, wait here or finish with this. `Stored` is what the runtime
-keeps per instance, a bookmark or the finished value. No database, no IO, no domain.
+### `store-framework/src/lib.rs`
+Databases only. `Backend`, implemented once per database, owns transactions (`begin`,
+`commit`, and the rule that a dropped transaction rolls back) and the framework's own
+tables: the instance registry with its status and response counter, and the journal.
+Also `InstanceId`, `Status`, `InstanceInfo`, `JournalEntry` and `JournalRow`, the record
+types the trait exchanges. Nothing here knows what a flow is.
 
----
-
-## `psp-store-framework`: storage (domain-agnostic)
-
-### `psp-store-framework/Cargo.toml`
-Depends on `psp-machine-framework`; `rusqlite` behind the default `sqlite` feature, so a
-deployment with another database can turn it off.
-
-### `psp-store-framework/src/lib.rs`
-Two traits that split storage between the framework and the application:
-
-* `Backend`, implemented once per database. It owns transactions (`begin`, `commit`, and
-  the rule that a dropped transaction rolls back) and the framework's own tables: the
-  instance registry with its status and response counter, and the journal. The driver
-  talks only to this trait.
-* `Persist<B>`, implemented by the application on its flow type, for example
-  `impl Persist<Sqlite> for PayFlow`. It owns the application's tables: `schema` is the
-  DDL, `save` turns a `Stored` object into rows, `load` turns rows back. The framework
-  decides when these run and wraps them in the backend's transaction. It is implemented on
-  the flow type rather than on the stored object because that is the only local type an
-  application has, which Rust's orphan rules require.
-
-Also `Status`, `InstanceInfo`, `JournalEntry` and `JournalRow`, the small record types the
-two traits exchange.
-
-### `psp-store-framework/src/sqlite.rs`
+### `store-framework/src/sqlite.rs`
 `Sqlite`, the first backend. `open` creates the two framework tables; `connection` exposes
 the raw connection for application queries. The `Backend` impl is a dozen short SQL
 statements. A Postgres backend would be this file again with different SQL.
 
 ---
 
-## `psp-driver-framework`: the runner (domain-agnostic)
+## `driver-framework`: the flow runtime (domain-agnostic)
 
-### `psp-driver-framework/Cargo.toml`
-Depends on the two crates above, with the store's SQLite feature off; the driver never
-names a database.
+### `driver-framework/Cargo.toml`
+Depends on `store-framework` with its SQLite feature off; the driver never names a
+database.
 
-### `psp-driver-framework/src/lib.rs`
-`Driver<F, B>`, generic over the flow and the backend, and the persistence contract in four
+### `driver-framework/src/machine.rs`
+What the runtime needs to know about a flow, and nothing else. `Flow` is the trait a
+`#[flow]` macro would implement for a generated machine: a bookmark type `State`, a
+terminal value `Done`, the `Event` and `Response` types, a `Violation` type, and the two
+pure functions `event` and `step`. `Next` is what `step` returns. `Stored` is what the
+runtime keeps per instance, a bookmark or the finished value.
+
+### `driver-framework/src/lib.rs`
+Two things. `Persist<B>` is the contract an application implements on its flow type, for
+example `impl Persist<Sqlite> for PayFlow`: `schema` is the DDL for the application's
+tables, `save` turns a `Stored` object into rows, `load` turns rows back. It lives here
+rather than in the store crate because it is about flows, and it is implemented on the
+flow type rather than the stored object because that is the only local type an
+application has, which Rust's orphan rules require.
+
+`Driver<F, B>`, generic over the flow and the backend, is the persistence contract in four
 methods. `new` creates the application's tables through `Persist::schema`. `start` stores
 the first bookmark and returns the first event. `deliver` opens a transaction, checks the
 instance is still waiting, loads the bookmark from the database, computes the next step,
@@ -154,22 +151,26 @@ from the tables for crash recovery. `journal` reads the log back. `DriverError` 
 ## `psp-app`: the UPI pay flow on the framework (domain)
 
 ### `psp-app/Cargo.toml`
-Depends on `psp_flow` with its `runtime` feature, the three framework crates, and
+Depends on `psp_flow` with its `runtime` feature, the two framework crates, and
 `rusqlite` for the application's own SQL.
 
 ### `psp-app/src/lib.rs`
-Names the concrete stack: `PayDriver` is `Driver<PayFlow, Sqlite>`, with `open` and
-`open_in_memory` helpers. Re-exports what the demo and tests need.
+`PayFlow`, the flow as the framework sees it: `impl Flow for PayFlow` names the bookmark,
+boundary and terminal types and forwards `event` and `step` to the generated-shaped
+functions in `psp_flow`. This is what `#[flow]` would generate. Also the concrete stack:
+`PayDriver` is `Driver<PayFlow, Sqlite>`, with `open` and `open_in_memory` helpers, and
+re-exports for the demo and tests.
 
-### `psp-app/src/pay_flow.rs`
-The application's side of the two framework seams. `impl Flow for PayFlow` forwards to the
-generated-shaped `event` and `step` in `psp_flow`. `impl Persist<Sqlite> for PayFlow` is
-the table model, hand-written to show what a `#[persist]` derive would generate: two tables
-chosen by the application, `upi_txn` for the entity (one row per transaction with a `state`
-column, queryable by support and reconciliation) and `pay_flow` for the flow position
-(which bookmark, plus its extra locals); `rows_waiting` and `rows_finished` map an object
-to rows; `rebuild` maps rows back; and the SQL upserts and selects. `entity_state` is the
-query a support tool would run.
+### `psp-app/src/persistence.rs`
+The storage mapper, hand-written to show what a `#[persist]` derive would generate:
+`impl Persist<Sqlite> for PayFlow`. Two tables chosen by the application, `upi_txn` for
+the entity (one row per transaction with a `state` column, queryable by support and
+reconciliation) and `pay_flow` for the flow position (which bookmark, plus its extra
+locals). `EntityRow`/`FlowRow` are rows about to be written, `EntityDb`/`FlowDb` rows just
+read; `rows_waiting` and `rows_finished` map a bookmark to rows; `rebuild` maps rows back,
+recomputing the one derived field rather than storing it; `reason_str`/`reason_parse` are
+the enum codec; and the SQL upserts and selects. `entity_state` is the query a support
+tool would run.
 
 ### `psp-app/src/bin/demo.rs`
 Drives three scenarios against a file-backed database and prints the `upi_txn.state`
@@ -250,9 +251,9 @@ depend only on Lean's standard axioms (`propext`, `Classical.choice`, `Quot.soun
     │                          ▼
  psp-app                psp-lean/PspFlow   (generated, never edited)
     ▲                          ▲
- psp-driver-framework   psp-lean/PspProofs (P1, P2, P4, P5, P6a, P6b, deliver_sound)
-    ▲          ▲
- psp-store-fw  psp-machine-fw              (fw = framework; no domain words)
+ driver-framework       psp-lean/PspProofs (P1, P2, P4, P5, P6a, P6b, deliver_sound)
+    ▲
+ store-framework                           (no domain words in either framework crate)
 ```
 
 `psp-flow` is the shape the `#[flow]` macro must generate: it is both what the driver

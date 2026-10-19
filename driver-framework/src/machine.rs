@@ -3,15 +3,9 @@
 //! A flow is a first-order machine: a bookmark type (`State`), a terminal value (`Done`),
 //! the interaction a bookmark waits on (`event`), and the pure function that consumes a
 //! response (`step`). The `#[flow]` macro would implement `Flow` for a generated machine;
-//! here the application crate implements it by hand for its flow.
-//!
-//! No database, no domain, no IO in this crate.
-
-#![forbid(unsafe_code)]
+//! the application crate implements it by hand for its flow.
 
 use core::fmt::Debug;
-
-pub type InstanceId = i64;
 
 pub trait Flow {
     /// Stable name, used to key instances in storage.

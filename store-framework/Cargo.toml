@@ -1,0 +1,12 @@
+[package]
+name = "store-framework"
+edition.workspace = true
+version.workspace = true
+description = "Domain-agnostic storage: the Backend trait (transactions, instance registry, journal) and a SQLite backend."
+
+[features]
+default = ["sqlite"]
+sqlite = ["dep:rusqlite"]
+
+[dependencies]
+rusqlite = { workspace = true, optional = true }

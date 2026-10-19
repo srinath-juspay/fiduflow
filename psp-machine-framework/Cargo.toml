@@ -1,7 +1,0 @@
-[package]
-name = "psp-machine-framework"
-edition.workspace = true
-version.workspace = true
-description = "Domain-agnostic machine abstraction: what a flow is to the runtime."
-
-[dependencies]

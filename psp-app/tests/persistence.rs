@@ -2,8 +2,7 @@
 
 use psp_app::{entity_state, open, open_in_memory, DriverError, Outcome, PayDriver, PayFlow, Sqlite, StoredPay};
 use psp_flow::*;
-use psp_machine_framework::Stored;
-use psp_store_framework::{Backend, Persist};
+use driver_framework::{Backend, Persist, Stored};
 
 fn intent() -> AnyResponse { AnyResponse::Intent(RawIntent { payee: Vpa(42), amount: Amount(50_000) }) }
 

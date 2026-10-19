@@ -1,40 +1,20 @@
-//! The application's side: binding the `payer_pay` machine to the framework, and
-//! modelling the tables the object is saved to. In the DSL, `impl Flow` comes from
-//! `#[flow]` and `impl Persist` from `#[persist]` with column annotations; here both are
-//! hand-written so the shape of what gets generated is visible.
+//! Storage mapper for the pay flow: how the stored bookmark (which carries the
+//! transaction) becomes rows in the application's tables, and how rows become the bookmark
+//! again. In the DSL this is what a `#[persist]` derive with column annotations would
+//! generate; it is hand-written here so the shape of the generated code is visible.
 //!
-//! Two tables, chosen by the user:
+//! Two tables, chosen by the application:
 //! * `upi_txn`  — the entity, one row per transaction, queryable by support and recon.
 //!                The `state` column is the entity state name; nullable columns are the
 //!                per-state data.
 //! * `pay_flow` — the flow position: which `PayerPay` variant, plus the locals that
 //!                variant carries beyond the entity.
 
+use crate::PayFlow;
+use driver_framework::{InstanceId, Persist, Stored};
 use psp_flow::*;
-use psp_machine_framework::{Flow, InstanceId, Next, Stored};
-use psp_store_framework::sqlite::Sqlite;
-use psp_store_framework::Persist;
+use store_framework::sqlite::Sqlite;
 use rusqlite::{params, Transaction};
-
-pub struct PayFlow;
-
-impl Flow for PayFlow {
-    const NAME: &'static str = "payer_pay";
-    type State = PayerPay;
-    type Done = Txn<Terminal>;
-    type Event = AnyEvent;
-    type Response = AnyResponse;
-    type Violation = Mismatch;
-
-    fn event(s: &PayerPay) -> AnyEvent { psp_flow::event(s) }
-
-    fn step(s: PayerPay, r: AnyResponse) -> Result<Next<PayerPay, Txn<Terminal>>, Mismatch> {
-        match psp_flow::deliver(s, r)? {
-            psp_flow::Next::Wait(s1) => Ok(Next::Wait(s1)),
-            psp_flow::Next::Done(d) => Ok(Next::Done(d)),
-        }
-    }
-}
 
 pub type StoredPay = Stored<PayerPay, Txn<Terminal>>;
 

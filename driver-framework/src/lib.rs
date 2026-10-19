@@ -1,5 +1,6 @@
-//! The runner. Generic over the flow (`F: Flow`) and the database (`B: Backend`); it
-//! knows nothing about either domain or SQL.
+//! The flow runtime: what a flow is (`machine`), how an application maps a flow's stored
+//! object to its own tables (`Persist`), and the runner (`Driver`). Generic over the flow
+//! (`F: Flow`) and the database (`B: Backend`); knows nothing about domains or SQL.
 //!
 //! The contract: `start` stores the bookmark before the first wait; `deliver` loads the
 //! bookmark from the database, steps it, stores it again and journals, all inside one
@@ -8,10 +9,25 @@
 
 #![forbid(unsafe_code)]
 
+pub mod machine;
+
+pub use machine::{Flow, Next, Stored};
+pub use store_framework::{Backend, InstanceId, JournalEntry, JournalRow, Status};
+
 use core::fmt::Debug;
 use core::marker::PhantomData;
-use psp_machine_framework::{Flow, InstanceId, Next, Stored};
-use psp_store_framework::{Backend, JournalEntry, JournalRow, Persist, Status};
+
+/// Application-modelled persistence of a flow's stored object against backend `B`.
+/// Implemented on the flow's marker type (the only local type an application has), so
+/// `impl Persist<Sqlite> for PayFlow` is legal under Rust's orphan rules. The framework
+/// decides when `save`/`load` run and wraps them in the backend's transaction; the
+/// application decides what the tables look like.
+pub trait Persist<B: Backend>: Flow {
+    /// DDL for the application's tables.
+    fn schema() -> &'static str;
+    fn save(obj: &Stored<Self::State, Self::Done>, tx: &mut B::Tx<'_>, id: InstanceId) -> Result<(), B::Error>;
+    fn load(tx: &mut B::Tx<'_>, id: InstanceId) -> Result<Stored<Self::State, Self::Done>, B::Error>;
+}
 
 #[derive(Debug)]
 pub enum DriverError<V: Debug, E: Debug> {

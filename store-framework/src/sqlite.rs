@@ -1,7 +1,6 @@
 //! SQLite backend. The framework tables live here; application tables come from `Persist`.
 
-use crate::{Backend, InstanceInfo, JournalEntry, JournalRow, Status};
-use psp_machine_framework::InstanceId;
+use crate::{Backend, InstanceId, InstanceInfo, JournalEntry, JournalRow, Status};
 use rusqlite::{params, Connection, OptionalExtension, Transaction};
 
 pub struct Sqlite {

@@ -1,11 +1,9 @@
-//! Storage, split in two traits.
+//! Storage. Knows about databases and nothing about flows or domains.
 //!
-//! * `Backend` is implemented once per database. It owns transactions and the framework's
-//!   own tables (instances and the journal). The driver only ever talks to this.
-//! * `Persist<B>` is implemented by the application on its flow type. It owns the
-//!   application's tables: how a bookmark becomes rows and how rows become a bookmark.
-//!   The framework decides when `save`/`load` run and wraps them in the backend's
-//!   transaction; the application decides what the tables look like.
+//! `Backend` is implemented once per database. It owns transactions and the framework's
+//! own tables (the instance registry and the journal). The driver only ever talks to this
+//! trait; how an application's own tables look is the application's business, expressed
+//! through `driver_framework::Persist`.
 //!
 //! Contract every backend must honour: dropping a `Tx` without `commit` rolls it back.
 
@@ -15,7 +13,8 @@
 pub mod sqlite;
 
 use core::fmt::Debug;
-use psp_machine_framework::{Flow, InstanceId, Stored};
+
+pub type InstanceId = i64;
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub enum Status {
@@ -64,14 +63,4 @@ pub trait Backend {
     fn append_journal(tx: &mut Self::Tx<'_>, id: InstanceId, seq: i64, entry: &JournalEntry) -> Result<(), Self::Error>;
     fn waiting_instances(tx: &mut Self::Tx<'_>, flow: &str) -> Result<Vec<InstanceId>, Self::Error>;
     fn journal(tx: &mut Self::Tx<'_>, id: InstanceId) -> Result<Vec<JournalRow>, Self::Error>;
-}
-
-/// Application-modelled persistence of a flow's stored object against backend `B`.
-/// Implemented on the flow's marker type (the only local type an application has), so
-/// `impl Persist<Sqlite> for PayFlow` is legal under Rust's orphan rules.
-pub trait Persist<B: Backend>: Flow {
-    /// DDL for the application's tables.
-    fn schema() -> &'static str;
-    fn save(obj: &Stored<Self::State, Self::Done>, tx: &mut B::Tx<'_>, id: InstanceId) -> Result<(), B::Error>;
-    fn load(tx: &mut B::Tx<'_>, id: InstanceId) -> Result<Stored<Self::State, Self::Done>, B::Error>;
 }
