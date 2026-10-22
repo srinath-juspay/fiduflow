@@ -4,3 +4,5 @@ target/
 build/
 # Lean build outputs and the packages symlink into ~/source/aeneas-namma-cloud
 psp-lean/.lake/
+# editor settings are machine-specific
+.vscode/
