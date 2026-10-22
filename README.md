@@ -24,6 +24,8 @@ and (b) translated to Lean with Aeneas and proved against.
 
 | Piece | What it is |
 |---|---|
+| `flow-macro` | The `flow!` proc macro (this branch). |
+| `psp-flow-dsl` | The pay flow written with `flow!`, plus its committed expansion `expanded.rs` (this branch). |
 | `psp-flow` | `no_std`, depends only on the (also `no_std`) framework traits, no closures/`dyn`/strings. `entity.rs` is the `UpiTxn` typestate entity; `events.rs` the interactions, each co-defined with its response via `impl Event { type Response }`; `machine.rs` one typed wait point per `Vis` node with `event`/`resume`, wrapped in `PayerPay`, plus the boundary `event`/`deliver`. |
 | `store-framework` | Domain-agnostic, databases only: the `Backend` trait (transactions plus the framework's instance and journal tables, one impl per database; SQLite included). |
 | `driver-framework` | Domain-agnostic, flows, `no_std`: the `Event`, `WaitPoint` and `Flow` traits, `Next`, `Stored`; the `Persist<B>` trait the application implements on its flow type to model its own tables; and `Driver<F, B>`. `start` stores the bookmark before the first wait; `deliver` loads it from the database, steps it, stores it again and journals, in one transaction; `pending` rebuilds waiting instances after a crash. |
@@ -50,6 +52,35 @@ What the proofs say (`psp-lean/PspProofs/Pay.lean`), all about the generated cod
 | P5 NPCI needs auth | `ReqPay` is only issued from `AtReqPay`, which holds a `Txn Authenticated` | by the constructor type |
 | P6a id preserved | the terminal entity has the id the flow started with | no transition touches `id` |
 | P6b amount validated | every amount reaching a terminal state is non-zero and within the cap | data invariant carried through every `Wait` |
+
+## The `flow!` macro, side by side with the hand-written flow (this branch)
+
+`flow-macro` is a proc macro: one invocation holds a flow's entity (states), interactions
+(each co-defined with its response type), pure decisions, and body in an async style, and
+is lowered to the same machine form that `psp-flow` writes by hand. `psp-flow-dsl` is the
+pay flow written that way; `psp-flow` is left untouched so the two can be compared.
+
+Three ways to compare them:
+
+- **Source.** `psp-flow-dsl/src/lib.rs` (143 lines, one invocation) against
+  `psp-flow/src/{entity,events,machine}.rs` (550 lines).
+- **Expansion.** `psp-flow-dsl/expanded.rs` is the macro's output, formatted and committed
+  (`scripts/expand-psp-dsl.sh` regenerates it). Read it against the hand-written files: the
+  same modules, types, wait points and fields, with transitions inlined as struct literals
+  instead of named methods.
+- **Semantics.** `scripts/translate-psp.sh` runs Charon and Aeneas on both crates and
+  checks the same proofs against both models: `psp-lean/PspProofs` against the
+  hand-written model and `psp-lean/PspProofsDsl`, derived from it by
+  `scripts/derive-dsl-proofs.py`, against the macro's. The derivation changes exactly
+  three things (the user-notification predicate moves into the proof, the decisions are
+  in the `machine` module, `start` takes the handle); every theorem and proof script is
+  otherwise identical.
+
+```sh
+cargo test --workspace            # both crates build; psp-app runs on the hand-written one
+scripts/expand-psp-dsl.sh         # refresh psp-flow-dsl/expanded.rs
+scripts/translate-psp.sh          # both Lean models, both proof sets
+```
 
 Deliberately out of spike 2, to be added as a separate effort: typed authorisation on
 transitions (`Authorized<Role>` parameters and `ensure` clauses, as in spike 1's `loan.rs`).

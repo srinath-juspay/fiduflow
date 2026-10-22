@@ -1,0 +1,13 @@
+[package]
+name = "flow-macro"
+edition.workspace = true
+version.workspace = true
+description = "The flow! macro: lowers an async-style flow body, with its entity, events and decisions, to a first-order machine."
+
+[lib]
+proc-macro = true
+
+[dependencies]
+syn = { version = "2", features = ["full", "visit", "visit-mut", "extra-traits"] }
+quote = "1"
+proc-macro2 = "1"

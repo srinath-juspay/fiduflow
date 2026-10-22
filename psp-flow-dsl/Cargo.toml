@@ -1,0 +1,13 @@
+[package]
+name = "psp_flow_dsl"
+edition.workspace = true
+version.workspace = true
+description = "The same UPI PSP pay flow as psp-flow, written with the flow! macro. Kept side by side with the hand-written crate for comparison."
+
+[features]
+default = []
+runtime = []
+
+[dependencies]
+flow-macro = { path = "../flow-macro" }
+driver-framework = { path = "../driver-framework" }
