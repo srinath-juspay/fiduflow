@@ -126,7 +126,8 @@ database.
 What the runtime needs to know about a flow, and nothing else. `Flow` is the trait a
 `#[flow]` macro would implement for a generated machine: a bookmark type `State`, a
 terminal value `Done`, the `Event` and `Response` types, and the two pure functions
-`event` and `step`; `step` returns `None` when the response does not fit the wait. `Next` is what `step` returns. `Stored` is what the
+`event` and `step`; `step` returns `Err(Refused::Mismatch)` when the response does not fit
+the wait. `Refused` is owned by the framework so every flow reports the same thing. `Next` is what `step` returns. `Stored` is what the
 runtime keeps per instance, a bookmark or the finished value.
 
 ### `driver-framework/src/lib.rs`

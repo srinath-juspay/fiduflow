@@ -20,9 +20,16 @@ pub trait Flow {
     type Response: Debug;
 
     fn event(s: &Self::State) -> Self::Event;
-    /// `None` means the response does not fit what `s` is waiting on; the driver reports
-    /// it as a mismatch and leaves the instance unchanged.
-    fn step(s: Self::State, r: Self::Response) -> Option<Next<Self::State, Self::Done>>;
+    /// Consume a response at bookmark `s`. A refusal leaves the instance unchanged.
+    fn step(s: Self::State, r: Self::Response) -> Result<Next<Self::State, Self::Done>, Refused>;
+}
+
+/// Why `step` refused a response. Owned by the framework so every flow reports the same
+/// thing and the driver can act on it.
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub enum Refused {
+    /// The response does not fit the event the bookmark is waiting on.
+    Mismatch,
 }
 
 /// What `step` decides after consuming a response: either the flow pauses again at a new

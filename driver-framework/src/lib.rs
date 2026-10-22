@@ -11,7 +11,7 @@
 
 pub mod machine;
 
-pub use machine::{Flow, Next, Stored};
+pub use machine::{Flow, Next, Refused, Stored};
 pub use store_framework::{Backend, InstanceId, JournalEntry, JournalRow, Status};
 
 use core::fmt::Debug;
@@ -86,7 +86,7 @@ impl<F: Persist<B>, B: Backend> Driver<F, B> {
                 };
                 let ev = F::event(&s);
                 let entry = JournalEntry { at: format!("{s:?}"), event: format!("{ev:?}"), response: format!("{r:?}") };
-                let next = F::step(s, r).ok_or(DriverError::Mismatch(id))?; // `tx` dropped => rollback
+                let next = F::step(s, r).map_err(|Refused::Mismatch| DriverError::Mismatch(id))?; // `tx` dropped => rollback
                 B::append_journal(&mut tx, id, info.seq, &entry).map_err(DriverError::Db)?;
                 let outcome = match next {
                     Next::Wait(s1) => {
