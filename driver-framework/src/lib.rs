@@ -29,13 +29,17 @@ pub trait Persist<B: Backend>: Flow {
     fn load(tx: &mut B::Tx<'_>, id: InstanceId) -> Result<Stored<Self::State, Self::Done>, B::Error>;
 }
 
+/// Why a driver call failed. In every case except `Db` the database is unchanged.
 #[derive(Debug)]
 pub enum DriverError<E: Debug> {
+    /// The backend failed; the transaction, if any, was not committed.
     Db(E),
+    /// No instance with this id exists.
     UnknownInstance(InstanceId),
+    /// The instance has already reached `Done` and accepts no further responses.
     AlreadyFinished(InstanceId),
-    /// The response does not fit what the instance is waiting on; the transaction was
-    /// rolled back, nothing changed.
+    /// The response does not fit the event the instance is waiting on; the transaction
+    /// was rolled back.
     Mismatch(InstanceId),
 }
 
