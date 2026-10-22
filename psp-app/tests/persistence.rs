@@ -76,7 +76,7 @@ fn violation_rolls_back_and_changes_nothing() {
     let id = to_await_callback(&mut d, 3);
     let journal_before = d.journal(id).unwrap();
     let err = d.deliver(id, AnyResponse::Mpin(Mpin(9))).unwrap_err();
-    assert!(matches!(err, DriverError::Violation(Mismatch::ResponseMismatch)));
+    assert!(matches!(err, DriverError::Mismatch(i) if i == id));
     assert_eq!(state(&d, id), "Submitted");
     assert_eq!(d.journal(id).unwrap(), journal_before);
     assert!(matches!(d.deliver(id, AnyResponse::Callback(Callback::Deemed)).unwrap(), Outcome::Wait(AnyEvent::Notify(Notify { status: Status::Processing }))));

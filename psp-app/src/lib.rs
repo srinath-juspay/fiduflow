@@ -9,7 +9,7 @@ pub use driver_framework::{Driver, DriverError, Flow, Next, Outcome};
 pub use persistence::{entity_state, StoredPay};
 pub use store_framework::sqlite::Sqlite;
 
-use psp_flow::{AnyEvent, AnyResponse, Mismatch, PayerPay, Terminal, Txn};
+use psp_flow::{AnyEvent, AnyResponse, PayerPay, Terminal, Txn};
 
 /// The pay flow, as the framework sees it. What `#[flow]` would generate.
 pub struct PayFlow;
@@ -20,14 +20,13 @@ impl Flow for PayFlow {
     type Done = Txn<Terminal>;
     type Event = AnyEvent;
     type Response = AnyResponse;
-    type Violation = Mismatch;
 
     fn event(s: &PayerPay) -> AnyEvent { psp_flow::event(s) }
 
-    fn step(s: PayerPay, r: AnyResponse) -> Result<Next<PayerPay, Txn<Terminal>>, Mismatch> {
-        match psp_flow::deliver(s, r)? {
-            psp_flow::Next::Wait(s1) => Ok(Next::Wait(s1)),
-            psp_flow::Next::Done(d) => Ok(Next::Done(d)),
+    fn step(s: PayerPay, r: AnyResponse) -> Option<Next<PayerPay, Txn<Terminal>>> {
+        match psp_flow::deliver(s, r).ok()? {
+            psp_flow::Next::Wait(s1) => Some(Next::Wait(s1)),
+            psp_flow::Next::Done(d) => Some(Next::Done(d)),
         }
     }
 }

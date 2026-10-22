@@ -18,11 +18,11 @@ pub trait Flow {
     type Event: Debug;
     /// What the outside world answers.
     type Response: Debug;
-    /// Why a response can be refused (it does not fit the event).
-    type Violation: Debug;
 
     fn event(s: &Self::State) -> Self::Event;
-    fn step(s: Self::State, r: Self::Response) -> Result<Next<Self::State, Self::Done>, Self::Violation>;
+    /// `None` means the response does not fit what `s` is waiting on; the driver reports
+    /// it as a mismatch and leaves the instance unchanged.
+    fn step(s: Self::State, r: Self::Response) -> Option<Next<Self::State, Self::Done>>;
 }
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]

@@ -49,7 +49,7 @@ fn main() {
         println!("    #{} at {:<60} <- {}", row.seq, row.entry.at, row.entry.response);
     }
 
-    println!("\n=== 3. protocol violation is rejected and rolled back");
+    println!("\n=== 3. a response that does not fit is rejected and rolled back");
     let (id3, _) = d.start(start(TxnId(1003), PayerId(7))).unwrap();
     let before = entity_state(d.backend().connection(), id3).unwrap();
     let err = d.deliver(id3, AnyResponse::Mpin(Mpin(1))).unwrap_err();
