@@ -347,12 +347,7 @@ pub mod machine {
         ResponseMismatch,
     }
     pub fn start(txn: Txn<Initiated>) -> PayerPay {
-        match Next::Wait(PayerPay::AtGetPaymentIntent(AtGetPaymentIntent {
-            txn: txn,
-        })) {
-            Next::Wait(s) => s,
-            Next::Done(_) => unreachable!(),
-        }
+        PayerPay::AtGetPaymentIntent(AtGetPaymentIntent { txn: txn })
     }
     impl WaitPoint<PayerPay, Txn<Terminal>> for AtGetPaymentIntent {
         type Event = GetPaymentIntent;

@@ -26,6 +26,9 @@ use syn::{Arm, Attribute, Expr, Ident, Pat, Stmt, Type};
 #[derive(Clone)]
 struct Binding {
     name: String,
+    /// The binding's own identifier, with its original span. References the generator
+    /// emits reuse it, so hygiene-aware tooling resolves them to this binding.
+    ident: Ident,
     ty: Type,
     /// A field of the wait point whose `resume` is being generated (`self.name`).
     captured: bool,
@@ -38,7 +41,7 @@ struct Env {
 
 impl Env {
     fn push(&mut self, name: &Ident, ty: Type, captured: bool) {
-        self.vars.push(Binding { name: name.to_string(), ty, captured });
+        self.vars.push(Binding { name: name.to_string(), ident: name.clone(), ty, captured });
     }
     fn lookup(&self, name: &str) -> Option<&Binding> {
         self.vars.iter().rev().find(|b| b.name == name)
@@ -88,10 +91,12 @@ pub struct Lowerer<'a> {
     points: Vec<WaitPoint>,
     used_names: HashSet<String>,
     hit_stack: Vec<HashSet<String>>,
+    /// Constructor of the first wait point, as seen from `start`'s environment.
+    start_ctor: Option<TokenStream>,
 }
 
 pub fn machine_module(def: &FlowDef) -> syn::Result<TokenStream> {
-    let mut l = Lowerer { def, points: Vec::new(), used_names: HashSet::new(), hit_stack: vec![HashSet::new()] };
+    let mut l = Lowerer { def, points: Vec::new(), used_names: HashSet::new(), hit_stack: vec![HashSet::new()], start_ctor: None };
     l.generate()
 }
 
@@ -675,13 +680,16 @@ impl<'a> Lowerer<'a> {
         let resume_body = build(self, &inner_env)?;
         let hits = self.hit_stack.pop().expect("hit stack");
 
-        // Fields: the hit names, in binding order, with their current types.
+        // Fields: the hit names, in binding order, with their current types. The field
+        // name is fresh; the value is the binding's own identifier (its span included).
         let mut fields: Vec<(Ident, Type)> = Vec::new();
+        let mut values: Vec<Ident> = Vec::new();
         let mut seen = HashSet::new();
         for b in &env.vars {
             if hits.contains(&b.name) && seen.insert(b.name.clone()) {
                 let latest = env.lookup(&b.name).expect("binding");
                 fields.push((Ident::new(&b.name, Span::call_site()), latest.ty.clone()));
+                values.push(latest.ident.clone());
             }
         }
 
@@ -690,11 +698,15 @@ impl<'a> Lowerer<'a> {
         let ctor: Expr = if fields.is_empty() {
             syn::parse_quote!(#flow_enum::#name(#name))
         } else {
-            syn::parse_quote!(#flow_enum::#name(#name { #(#fnames),* }))
+            syn::parse_quote!(#flow_enum::#name(#name { #(#fnames: #values),* }))
         };
         self.points[slot] = WaitPoint { name, event: evd.name.clone(), fields, event_body, resume_body };
         // Rewrite the constructor for the *outer* environment (records outer hits).
-        self.emit_expr(&ctor, env, false)
+        let ctor = self.emit_expr(&ctor, env, false)?;
+        if slot == 0 {
+            self.start_ctor = Some(ctor.clone());
+        }
+        Ok(ctor)
     }
 
     fn flow_enum(&self) -> Ident {
@@ -736,15 +748,13 @@ impl<'a> Lowerer<'a> {
             prelude.push(quote! { let #pat = #value; });
             self.bind_pattern(&l.pat, &ty, &mut env)?;
         }
-        let first = self.lower(tail, env)?;
-
-        // `first` is `Next::Wait(<ctor>)`; `start` returns the bookmark itself.
+        let _ = self.lower(tail, env)?;
+        // The first wait point created is the entry point; `start` returns its constructor
+        // directly, so there is no unreachable `Done` arm and no panic path.
+        let start_ctor = self.start_ctor.clone().expect("a flow has at least one wait point");
         let start_body = quote! {
             #(#prelude)*
-            match #first {
-                Next::Wait(s) => s,
-                Next::Done(_) => unreachable!(),
-            }
+            #start_ctor
         };
 
         let d = derives();
