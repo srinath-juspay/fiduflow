@@ -124,6 +124,9 @@ dependencies = [
 [[package]]
 name = "psp_flow"
 version = "0.1.0"
+dependencies = [
+ "driver-framework",
+]
 
 [[package]]
 name = "quote"

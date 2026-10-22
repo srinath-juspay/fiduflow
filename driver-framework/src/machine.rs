@@ -1,11 +1,27 @@
-//! What the runtime needs to know about a flow, and nothing else.
+//! What the runtime needs to know about a flow, and the vocabulary a flow is written in.
 //!
 //! A flow is a first-order machine: a bookmark type (`State`), a terminal value (`Done`),
 //! the interaction a bookmark waits on (`event`), and the pure function that consumes a
-//! response (`step`). The `#[flow]` macro would implement `Flow` for a generated machine;
-//! the application crate implements it by hand for its flow.
+//! response (`step`). Inside the flow, each bookmark is a `WaitPoint` whose `resume` takes
+//! exactly the response type of its `Event`. This module is `no_std` so a pure flow crate
+//! can depend on it without gaining any way to do IO.
 
 use core::fmt::Debug;
+
+/// An interaction with the outside world, co-defined with the type of its answer.
+pub trait Event {
+    type Response;
+}
+
+/// One pause in a flow: what it waits on, and how it consumes exactly that event's
+/// response. The associated `Event` pins the parameter type of `resume`, so a wait point
+/// cannot be resumed with anything but the answer to its own question. `S` is the flow's
+/// bookmark type and `D` its terminal value.
+pub trait WaitPoint<S, D> {
+    type Event: Event;
+    fn event(&self) -> Self::Event;
+    fn resume(self, r: <Self::Event as Event>::Response) -> Next<S, D>;
+}
 
 pub trait Flow {
     /// Stable name, used to key instances in storage.

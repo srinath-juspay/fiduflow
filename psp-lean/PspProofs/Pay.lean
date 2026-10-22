@@ -21,24 +21,25 @@ open Aeneas Aeneas.Std Result
 
 namespace psp_flow
 open machine events entity values
+open driver_framework.machine
 
 /-- One typed step: the wait point `s` resumed with a response of its event's type. -/
-inductive Steps : PayerPay → Next → Prop
-  | atGetPaymentIntent {w r n} : AtGetPaymentIntent.resume w r = ok n → Steps (.AtGetPaymentIntent w) n
-  | atShowError {w r n} : AtShowError.resume w r = ok n → Steps (.AtShowError w) n
-  | atCollectMpin {w r n} : AtCollectMpin.resume w r = ok n → Steps (.AtCollectMpin w) n
-  | atReqPay {w r n} : AtReqPay.resume w r = ok n → Steps (.AtReqPay w) n
-  | atNotifyRejected {w r n} : AtNotifyRejected.resume w r = ok n → Steps (.AtNotifyRejected w) n
-  | atAwaitCallback {w r n} : AtAwaitCallback.resume w r = ok n → Steps (.AtAwaitCallback w) n
-  | atNotifySuccess {w r n} : AtNotifySuccess.resume w r = ok n → Steps (.AtNotifySuccess w) n
-  | atNotifyFailed {w r n} : AtNotifyFailed.resume w r = ok n → Steps (.AtNotifyFailed w) n
-  | atNotifyProcessing {w r n} : AtNotifyProcessing.resume w r = ok n → Steps (.AtNotifyProcessing w) n
-  | atAwaitDeemed {w r n} : AtAwaitDeemed.resume w r = ok n → Steps (.AtAwaitDeemed w) n
-  | atNotifyConfirmed {w r n} : AtNotifyConfirmed.resume w r = ok n → Steps (.AtNotifyConfirmed w) n
-  | atNotifyDeemedReversed {w r n} : AtNotifyDeemedReversed.resume w r = ok n → Steps (.AtNotifyDeemedReversed w) n
-  | atNotifyReversalStart {w r n} : AtNotifyReversalStart.resume w r = ok n → Steps (.AtNotifyReversalStart w) n
-  | atAwaitForcedReversal {w r n} : AtAwaitForcedReversal.resume w r = ok n → Steps (.AtAwaitForcedReversal w) n
-  | atNotifyReversed {w r n} : AtNotifyReversed.resume w r = ok n → Steps (.AtNotifyReversed w) n
+inductive Steps : PayerPay → Next PayerPay (Txn Terminal) → Prop
+  | atGetPaymentIntent {w r n} : machine.AtGetPaymentIntent.Insts.Driver_frameworkMachineWaitPointPayerPayTxnTerminalGetPaymentIntentRawIntent.resume w r = ok n → Steps (.AtGetPaymentIntent w) n
+  | atShowError {w r n} : machine.AtShowError.Insts.Driver_frameworkMachineWaitPointPayerPayTxnTerminalShowErrorTuple.resume w r = ok n → Steps (.AtShowError w) n
+  | atCollectMpin {w r n} : machine.AtCollectMpin.Insts.Driver_frameworkMachineWaitPointPayerPayTxnTerminalCollectMpinMpin.resume w r = ok n → Steps (.AtCollectMpin w) n
+  | atReqPay {w r n} : machine.AtReqPay.Insts.Driver_frameworkMachineWaitPointPayerPayTxnTerminalReqPayReqPayResponse.resume w r = ok n → Steps (.AtReqPay w) n
+  | atNotifyRejected {w r n} : machine.AtNotifyRejected.Insts.Driver_frameworkMachineWaitPointPayerPayTxnTerminalNotifyTuple.resume w r = ok n → Steps (.AtNotifyRejected w) n
+  | atAwaitCallback {w r n} : machine.AtAwaitCallback.Insts.Driver_frameworkMachineWaitPointPayerPayTxnTerminalAwaitCallbackCallback.resume w r = ok n → Steps (.AtAwaitCallback w) n
+  | atNotifySuccess {w r n} : machine.AtNotifySuccess.Insts.Driver_frameworkMachineWaitPointPayerPayTxnTerminalNotifyTuple.resume w r = ok n → Steps (.AtNotifySuccess w) n
+  | atNotifyFailed {w r n} : machine.AtNotifyFailed.Insts.Driver_frameworkMachineWaitPointPayerPayTxnTerminalNotifyTuple.resume w r = ok n → Steps (.AtNotifyFailed w) n
+  | atNotifyProcessing {w r n} : machine.AtNotifyProcessing.Insts.Driver_frameworkMachineWaitPointPayerPayTxnTerminalNotifyTuple.resume w r = ok n → Steps (.AtNotifyProcessing w) n
+  | atAwaitDeemed {w r n} : machine.AtAwaitDeemed.Insts.Driver_frameworkMachineWaitPointPayerPayTxnTerminalAwaitDeemedResolutionResolution.resume w r = ok n → Steps (.AtAwaitDeemed w) n
+  | atNotifyConfirmed {w r n} : machine.AtNotifyConfirmed.Insts.Driver_frameworkMachineWaitPointPayerPayTxnTerminalNotifyTuple.resume w r = ok n → Steps (.AtNotifyConfirmed w) n
+  | atNotifyDeemedReversed {w r n} : machine.AtNotifyDeemedReversed.Insts.Driver_frameworkMachineWaitPointPayerPayTxnTerminalNotifyTuple.resume w r = ok n → Steps (.AtNotifyDeemedReversed w) n
+  | atNotifyReversalStart {w r n} : machine.AtNotifyReversalStart.Insts.Driver_frameworkMachineWaitPointPayerPayTxnTerminalNotifyTuple.resume w r = ok n → Steps (.AtNotifyReversalStart w) n
+  | atAwaitForcedReversal {w r n} : machine.AtAwaitForcedReversal.Insts.Driver_frameworkMachineWaitPointPayerPayTxnTerminalAwaitForcedReversalTuple.resume w r = ok n → Steps (.AtAwaitForcedReversal w) n
+  | atNotifyReversed {w r n} : machine.AtNotifyReversed.Insts.Driver_frameworkMachineWaitPointPayerPayTxnTerminalNotifyTuple.resume w r = ok n → Steps (.AtNotifyReversed w) n
 
 /-- A complete run: the interactions performed from `s` until the terminal entity `t`. -/
 inductive Reaches : PayerPay → List AnyEvent → Txn Terminal → Prop
@@ -65,16 +66,16 @@ theorem deliver_sound {s r n} (h : deliver s r = ok (core.result.Result.Ok n)) :
 
 -- The simp set that evaluates the generated code once the wait point is a constructor.
 attribute [local simp] machine.event machine.start machine.deliver AnyEvent.is_user_notification
-  AtGetPaymentIntent.resume AtShowError.resume AtCollectMpin.resume AtReqPay.resume
-  AtNotifyRejected.resume AtAwaitCallback.resume AtNotifySuccess.resume AtNotifyFailed.resume
-  AtNotifyProcessing.resume AtAwaitDeemed.resume AtNotifyConfirmed.resume
-  AtNotifyDeemedReversed.resume AtNotifyReversalStart.resume AtAwaitForcedReversal.resume
-  AtNotifyReversed.resume
-  AtGetPaymentIntent.event AtShowError.event AtCollectMpin.event AtReqPay.event
-  AtNotifyRejected.event AtAwaitCallback.event AtNotifySuccess.event AtNotifyFailed.event
-  AtNotifyProcessing.event AtAwaitDeemed.event AtNotifyConfirmed.event
-  AtNotifyDeemedReversed.event AtNotifyReversalStart.event AtAwaitForcedReversal.event
-  AtNotifyReversed.event
+  machine.AtGetPaymentIntent.Insts.Driver_frameworkMachineWaitPointPayerPayTxnTerminalGetPaymentIntentRawIntent.resume machine.AtShowError.Insts.Driver_frameworkMachineWaitPointPayerPayTxnTerminalShowErrorTuple.resume machine.AtCollectMpin.Insts.Driver_frameworkMachineWaitPointPayerPayTxnTerminalCollectMpinMpin.resume machine.AtReqPay.Insts.Driver_frameworkMachineWaitPointPayerPayTxnTerminalReqPayReqPayResponse.resume
+  machine.AtNotifyRejected.Insts.Driver_frameworkMachineWaitPointPayerPayTxnTerminalNotifyTuple.resume machine.AtAwaitCallback.Insts.Driver_frameworkMachineWaitPointPayerPayTxnTerminalAwaitCallbackCallback.resume machine.AtNotifySuccess.Insts.Driver_frameworkMachineWaitPointPayerPayTxnTerminalNotifyTuple.resume machine.AtNotifyFailed.Insts.Driver_frameworkMachineWaitPointPayerPayTxnTerminalNotifyTuple.resume
+  machine.AtNotifyProcessing.Insts.Driver_frameworkMachineWaitPointPayerPayTxnTerminalNotifyTuple.resume machine.AtAwaitDeemed.Insts.Driver_frameworkMachineWaitPointPayerPayTxnTerminalAwaitDeemedResolutionResolution.resume machine.AtNotifyConfirmed.Insts.Driver_frameworkMachineWaitPointPayerPayTxnTerminalNotifyTuple.resume
+  machine.AtNotifyDeemedReversed.Insts.Driver_frameworkMachineWaitPointPayerPayTxnTerminalNotifyTuple.resume machine.AtNotifyReversalStart.Insts.Driver_frameworkMachineWaitPointPayerPayTxnTerminalNotifyTuple.resume machine.AtAwaitForcedReversal.Insts.Driver_frameworkMachineWaitPointPayerPayTxnTerminalAwaitForcedReversalTuple.resume
+  machine.AtNotifyReversed.Insts.Driver_frameworkMachineWaitPointPayerPayTxnTerminalNotifyTuple.resume
+  machine.AtGetPaymentIntent.Insts.Driver_frameworkMachineWaitPointPayerPayTxnTerminalGetPaymentIntentRawIntent.event machine.AtShowError.Insts.Driver_frameworkMachineWaitPointPayerPayTxnTerminalShowErrorTuple.event machine.AtCollectMpin.Insts.Driver_frameworkMachineWaitPointPayerPayTxnTerminalCollectMpinMpin.event machine.AtReqPay.Insts.Driver_frameworkMachineWaitPointPayerPayTxnTerminalReqPayReqPayResponse.event
+  machine.AtNotifyRejected.Insts.Driver_frameworkMachineWaitPointPayerPayTxnTerminalNotifyTuple.event machine.AtAwaitCallback.Insts.Driver_frameworkMachineWaitPointPayerPayTxnTerminalAwaitCallbackCallback.event machine.AtNotifySuccess.Insts.Driver_frameworkMachineWaitPointPayerPayTxnTerminalNotifyTuple.event machine.AtNotifyFailed.Insts.Driver_frameworkMachineWaitPointPayerPayTxnTerminalNotifyTuple.event
+  machine.AtNotifyProcessing.Insts.Driver_frameworkMachineWaitPointPayerPayTxnTerminalNotifyTuple.event machine.AtAwaitDeemed.Insts.Driver_frameworkMachineWaitPointPayerPayTxnTerminalAwaitDeemedResolutionResolution.event machine.AtNotifyConfirmed.Insts.Driver_frameworkMachineWaitPointPayerPayTxnTerminalNotifyTuple.event
+  machine.AtNotifyDeemedReversed.Insts.Driver_frameworkMachineWaitPointPayerPayTxnTerminalNotifyTuple.event machine.AtNotifyReversalStart.Insts.Driver_frameworkMachineWaitPointPayerPayTxnTerminalNotifyTuple.event machine.AtAwaitForcedReversal.Insts.Driver_frameworkMachineWaitPointPayerPayTxnTerminalAwaitForcedReversalTuple.event
+  machine.AtNotifyReversed.Insts.Driver_frameworkMachineWaitPointPayerPayTxnTerminalNotifyTuple.event
   values.validate_pay_intent
   entity.TxnInitiated.new entity.TxnInitiated.abandon entity.TxnInitiated.authenticate
   entity.TxnAuthenticated.build_req_pay entity.TxnAuthenticated.submit entity.TxnAuthenticated.reject

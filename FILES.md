@@ -45,8 +45,8 @@ strings, no `async`, and `Debug`/`PartialEq` derives only behind the `runtime` f
 the translated surface stays small.
 
 ### `psp-flow/Cargo.toml`
-No dependencies. The `runtime` feature enables the derives the runtime and tests need;
-Charon runs with it off.
+Depends only on `driver-framework` (for `Event`, `WaitPoint` and `Next`; no SQLite). The
+`runtime` feature enables the derives the runtime and tests need; Charon runs with it off.
 
 ### `psp-flow/src/lib.rs`
 Module wiring and re-exports.
@@ -67,7 +67,7 @@ The module is named `entity` rather than `txn` because a module name that matche
 common local variable breaks the generated Lean.
 
 ### `psp-flow/src/events.rs`
-The interactions, each co-defined with its response: `trait Event { type Response; }` and
+The interactions, each co-defined with its response: the framework's `Event` trait and
 one struct per event, so `<AwaitCallback as Event>::Response` is `Callback`. Deadlines are
 part of the event and the expired-deadline cases are variants of the response, so an
 exhaustive `match` cannot forget them. `AnyEvent` and `AnyResponse` are the runtime
@@ -80,12 +80,12 @@ The flow as a machine, and the file the whole second spike is about:
 
 * One struct per `Vis` node of the document's inlined tree (`AtAwaitCallback`,
   `AtNotifySuccess`, ...), carrying the locals live at that point, always the typed entity
-  handle and sometimes a little more. Each has `event()`, what it waits on, and
-  `resume(r)`, whose parameter type is `<ItsEvent as Event>::Response`, so a mismatched
-  response is unrepresentable inside the machine. `resume` is the `λ(response) → ...` of
-  that node.
-* `PayerPay` wraps the wait points so a stored instance is one value; `Next` is
-  `Wait(bookmark)` or `Done(terminal entity)`.
+  handle and sometimes a little more. Each implements the framework's `WaitPoint` trait: an
+  associated `Event`, `event()` saying what it waits on, and `resume(r)` whose parameter
+  type is `<Self::Event as Event>::Response`, so a mismatched response is unrepresentable
+  inside the machine. `resume` is the `λ(response) → ...` of that node.
+* `PayerPay` wraps the wait points so a stored instance is one value; `Next` is the
+  framework's `Next<PayerPay, Txn<Terminal>>`.
 * `event(&s)` and `deliver(s, r)` are the runtime boundary: `deliver` decodes an
   `AnyResponse` for the bookmark's event and calls `resume`; it is the only place a
   `Mismatch` can occur. The DSL would generate both.
@@ -103,7 +103,9 @@ No dependencies except `rusqlite` behind the default `sqlite` feature, so a depl
 with another database can turn it off.
 
 ### `store-framework/src/lib.rs`
-Databases only. `Backend`, implemented once per database, owns transactions (`begin`,
+`no_std` with `alloc`, so pure crates can depend on the framework; the SQLite module
+brings in `std` behind its feature. Databases only. `Backend`, implemented once per
+database, owns transactions (`begin`,
 `commit`, and the rule that a dropped transaction rolls back) and the framework's own
 tables: the instance registry with its status and response counter, and the journal.
 Also `InstanceId`, `Status`, `InstanceInfo`, `JournalEntry` and `JournalRow`, the record
@@ -123,12 +125,17 @@ Depends on `store-framework` with its SQLite feature off; the driver never names
 database.
 
 ### `driver-framework/src/machine.rs`
-What the runtime needs to know about a flow, and nothing else. `Flow` is the trait a
-`#[flow]` macro would implement for a generated machine: a bookmark type `State`, a
-terminal value `Done`, the `Event` and `Response` types, and the two pure functions
-`event` and `step`; `step` returns `Err(Refused::Mismatch)` when the response does not fit
-the wait. `Refused` is owned by the framework so every flow reports the same thing. `Next` is what `step` returns. `Stored` is what the
-runtime keeps per instance, a bookmark or the finished value.
+The vocabulary a flow is written in, and what the runtime needs to know about one.
+`Event` is an interaction co-defined with its response type. `WaitPoint<S, D>` is one
+pause in a flow: an associated `Event`, `event()` saying what it waits on, and `resume(r)`
+whose parameter type is that event's response. `Next<S, D>` is what `resume` and `step`
+return, pause at a new bookmark or finish. `Flow` is the trait a flow implements for the
+driver: a bookmark type `State`, a terminal value `Done`, the `Event` and `Response`
+boundary types, and the two pure functions `event` and `step`; `step` returns
+`Err(Refused::Mismatch)` when the response does not fit the wait. `Stored` is what the
+runtime keeps per instance. The crate is `no_std`, so `psp-flow` depends on it and
+Charon follows the dependency: these items appear in the Lean model under
+`driver_framework.machine`.
 
 ### `driver-framework/src/lib.rs`
 Two things. `Persist<B>` is the contract an application implements on its flow type, for

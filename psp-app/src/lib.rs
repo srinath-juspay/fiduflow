@@ -24,10 +24,7 @@ impl Flow for PayFlow {
     fn event(s: &PayerPay) -> AnyEvent { psp_flow::event(s) }
 
     fn step(s: PayerPay, r: AnyResponse) -> Result<Next<PayerPay, Txn<Terminal>>, Refused> {
-        match psp_flow::deliver(s, r).map_err(|Mismatch::ResponseMismatch| Refused::Mismatch)? {
-            psp_flow::Next::Wait(s1) => Ok(Next::Wait(s1)),
-            psp_flow::Next::Done(d) => Ok(Next::Done(d)),
-        }
+        psp_flow::deliver(s, r).map_err(|Mismatch::ResponseMismatch| Refused::Mismatch)
     }
 }
 

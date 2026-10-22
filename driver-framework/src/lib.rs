@@ -7,13 +7,18 @@
 //! transaction; `pending` rebuilds every waiting instance from the database after a
 //! restart. A mismatch or a crash before commit leaves the database unchanged.
 
+#![no_std]
 #![forbid(unsafe_code)]
+
+extern crate alloc;
 
 pub mod machine;
 
-pub use machine::{Flow, Next, Refused, Stored};
+pub use machine::{Event, Flow, Next, Refused, Stored, WaitPoint};
 pub use store_framework::{Backend, InstanceId, JournalEntry, JournalRow, Status};
 
+use alloc::format;
+use alloc::vec::Vec;
 use core::fmt::Debug;
 use core::marker::PhantomData;
 

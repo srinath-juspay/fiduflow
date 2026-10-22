@@ -444,35 +444,35 @@ def entity.TxnAbandoned.terminal
   ok { id := self.id, data := (entity.Terminal.Abandoned self.data) }
 
 /-- [psp_flow::events::{impl core::clone::Clone for psp_flow::events::Party}::clone]:
-    Source: 'psp-flow/src/events.rs', lines 16:9-16:14
+    Source: 'psp-flow/src/events.rs', lines 14:9-14:14
     Visibility: public -/
 def events.Party.Insts.CoreCloneClone.clone
   (self : events.Party) : Result events.Party := do
   ok self
 
 /-- Trait implementation: [psp_flow::events::{impl core::clone::Clone for psp_flow::events::Party}]
-    Source: 'psp-flow/src/events.rs', lines 16:9-16:14 -/
+    Source: 'psp-flow/src/events.rs', lines 14:9-14:14 -/
 @[reducible]
 def events.Party.Insts.CoreCloneClone : core.clone.Clone events.Party := {
   clone := events.Party.Insts.CoreCloneClone.clone
 }
 
 /-- Trait implementation: [psp_flow::events::{impl core::marker::Copy for psp_flow::events::Party}]
-    Source: 'psp-flow/src/events.rs', lines 16:16-16:20 -/
+    Source: 'psp-flow/src/events.rs', lines 14:16-14:20 -/
 @[reducible]
 def events.Party.Insts.CoreMarkerCopy : core.marker.Copy events.Party := {
   cloneInst := events.Party.Insts.CoreCloneClone
 }
 
 /-- [psp_flow::events::{impl core::clone::Clone for psp_flow::events::GetPaymentIntent}::clone]:
-    Source: 'psp-flow/src/events.rs', lines 22:9-22:14
+    Source: 'psp-flow/src/events.rs', lines 20:9-20:14
     Visibility: public -/
 def events.GetPaymentIntent.Insts.CoreCloneClone.clone
   (self : events.GetPaymentIntent) : Result events.GetPaymentIntent := do
   ok self
 
 /-- Trait implementation: [psp_flow::events::{impl core::clone::Clone for psp_flow::events::GetPaymentIntent}]
-    Source: 'psp-flow/src/events.rs', lines 22:9-22:14 -/
+    Source: 'psp-flow/src/events.rs', lines 20:9-20:14 -/
 @[reducible]
 def events.GetPaymentIntent.Insts.CoreCloneClone : core.clone.Clone
   events.GetPaymentIntent := {
@@ -480,29 +480,29 @@ def events.GetPaymentIntent.Insts.CoreCloneClone : core.clone.Clone
 }
 
 /-- Trait implementation: [psp_flow::events::{impl core::marker::Copy for psp_flow::events::GetPaymentIntent}]
-    Source: 'psp-flow/src/events.rs', lines 22:16-22:20 -/
+    Source: 'psp-flow/src/events.rs', lines 20:16-20:20 -/
 @[reducible]
 def events.GetPaymentIntent.Insts.CoreMarkerCopy : core.marker.Copy
   events.GetPaymentIntent := {
   cloneInst := events.GetPaymentIntent.Insts.CoreCloneClone
 }
 
-/-- Trait implementation: [psp_flow::events::{impl psp_flow::events::Event<psp_flow::values::RawIntent> for psp_flow::events::GetPaymentIntent}]
-    Source: 'psp-flow/src/events.rs', lines 25:0-25:62 -/
+/-- Trait implementation: [psp_flow::events::{impl driver_framework::machine::Event<psp_flow::values::RawIntent> for psp_flow::events::GetPaymentIntent}]
+    Source: 'psp-flow/src/events.rs', lines 23:0-23:62 -/
 @[reducible]
-def events.GetPaymentIntent.Insts.Psp_flowEventsEventRawIntent : events.Event
-  events.GetPaymentIntent values.RawIntent := {
+def events.GetPaymentIntent.Insts.Driver_frameworkMachineEventRawIntent :
+  driver_framework.machine.Event events.GetPaymentIntent values.RawIntent := {
 }
 
 /-- [psp_flow::events::{impl core::clone::Clone for psp_flow::events::ShowError}::clone]:
-    Source: 'psp-flow/src/events.rs', lines 27:9-27:14
+    Source: 'psp-flow/src/events.rs', lines 25:9-25:14
     Visibility: public -/
 def events.ShowError.Insts.CoreCloneClone.clone
   (self : events.ShowError) : Result events.ShowError := do
   ok self
 
 /-- Trait implementation: [psp_flow::events::{impl core::clone::Clone for psp_flow::events::ShowError}]
-    Source: 'psp-flow/src/events.rs', lines 27:9-27:14 -/
+    Source: 'psp-flow/src/events.rs', lines 25:9-25:14 -/
 @[reducible]
 def events.ShowError.Insts.CoreCloneClone : core.clone.Clone events.ShowError
   := {
@@ -510,29 +510,29 @@ def events.ShowError.Insts.CoreCloneClone : core.clone.Clone events.ShowError
 }
 
 /-- Trait implementation: [psp_flow::events::{impl core::marker::Copy for psp_flow::events::ShowError}]
-    Source: 'psp-flow/src/events.rs', lines 27:16-27:20 -/
+    Source: 'psp-flow/src/events.rs', lines 25:16-25:20 -/
 @[reducible]
 def events.ShowError.Insts.CoreMarkerCopy : core.marker.Copy events.ShowError
   := {
   cloneInst := events.ShowError.Insts.CoreCloneClone
 }
 
-/-- Trait implementation: [psp_flow::events::{impl psp_flow::events::Event<()> for psp_flow::events::ShowError}]
-    Source: 'psp-flow/src/events.rs', lines 30:0-30:48 -/
+/-- Trait implementation: [psp_flow::events::{impl driver_framework::machine::Event<()> for psp_flow::events::ShowError}]
+    Source: 'psp-flow/src/events.rs', lines 28:0-28:48 -/
 @[reducible]
-def events.ShowError.Insts.Psp_flowEventsEventTuple : events.Event
-  events.ShowError Unit := {
+def events.ShowError.Insts.Driver_frameworkMachineEventTuple :
+  driver_framework.machine.Event events.ShowError Unit := {
 }
 
 /-- [psp_flow::events::{impl core::clone::Clone for psp_flow::events::CollectMpin}::clone]:
-    Source: 'psp-flow/src/events.rs', lines 32:9-32:14
+    Source: 'psp-flow/src/events.rs', lines 30:9-30:14
     Visibility: public -/
 def events.CollectMpin.Insts.CoreCloneClone.clone
   (self : events.CollectMpin) : Result events.CollectMpin := do
   ok self
 
 /-- Trait implementation: [psp_flow::events::{impl core::clone::Clone for psp_flow::events::CollectMpin}]
-    Source: 'psp-flow/src/events.rs', lines 32:9-32:14 -/
+    Source: 'psp-flow/src/events.rs', lines 30:9-30:14 -/
 @[reducible]
 def events.CollectMpin.Insts.CoreCloneClone : core.clone.Clone
   events.CollectMpin := {
@@ -540,78 +540,78 @@ def events.CollectMpin.Insts.CoreCloneClone : core.clone.Clone
 }
 
 /-- Trait implementation: [psp_flow::events::{impl core::marker::Copy for psp_flow::events::CollectMpin}]
-    Source: 'psp-flow/src/events.rs', lines 32:16-32:20 -/
+    Source: 'psp-flow/src/events.rs', lines 30:16-30:20 -/
 @[reducible]
 def events.CollectMpin.Insts.CoreMarkerCopy : core.marker.Copy
   events.CollectMpin := {
   cloneInst := events.CollectMpin.Insts.CoreCloneClone
 }
 
-/-- Trait implementation: [psp_flow::events::{impl psp_flow::events::Event<psp_flow::values::Mpin> for psp_flow::events::CollectMpin}]
-    Source: 'psp-flow/src/events.rs', lines 35:0-35:52 -/
+/-- Trait implementation: [psp_flow::events::{impl driver_framework::machine::Event<psp_flow::values::Mpin> for psp_flow::events::CollectMpin}]
+    Source: 'psp-flow/src/events.rs', lines 33:0-33:52 -/
 @[reducible]
-def events.CollectMpin.Insts.Psp_flowEventsEventMpin : events.Event
-  events.CollectMpin values.Mpin := {
+def events.CollectMpin.Insts.Driver_frameworkMachineEventMpin :
+  driver_framework.machine.Event events.CollectMpin values.Mpin := {
 }
 
 /-- [psp_flow::events::{impl core::clone::Clone for psp_flow::events::Notify}::clone]:
-    Source: 'psp-flow/src/events.rs', lines 37:9-37:14
+    Source: 'psp-flow/src/events.rs', lines 35:9-35:14
     Visibility: public -/
 def events.Notify.Insts.CoreCloneClone.clone
   (self : events.Notify) : Result events.Notify := do
   ok self
 
 /-- Trait implementation: [psp_flow::events::{impl core::clone::Clone for psp_flow::events::Notify}]
-    Source: 'psp-flow/src/events.rs', lines 37:9-37:14 -/
+    Source: 'psp-flow/src/events.rs', lines 35:9-35:14 -/
 @[reducible]
 def events.Notify.Insts.CoreCloneClone : core.clone.Clone events.Notify := {
   clone := events.Notify.Insts.CoreCloneClone.clone
 }
 
 /-- Trait implementation: [psp_flow::events::{impl core::marker::Copy for psp_flow::events::Notify}]
-    Source: 'psp-flow/src/events.rs', lines 37:16-37:20 -/
+    Source: 'psp-flow/src/events.rs', lines 35:16-35:20 -/
 @[reducible]
 def events.Notify.Insts.CoreMarkerCopy : core.marker.Copy events.Notify := {
   cloneInst := events.Notify.Insts.CoreCloneClone
 }
 
-/-- Trait implementation: [psp_flow::events::{impl psp_flow::events::Event<()> for psp_flow::events::Notify}]
-    Source: 'psp-flow/src/events.rs', lines 40:0-40:45 -/
+/-- Trait implementation: [psp_flow::events::{impl driver_framework::machine::Event<()> for psp_flow::events::Notify}]
+    Source: 'psp-flow/src/events.rs', lines 38:0-38:45 -/
 @[reducible]
-def events.Notify.Insts.Psp_flowEventsEventTuple : events.Event events.Notify
-  Unit := {
+def events.Notify.Insts.Driver_frameworkMachineEventTuple :
+  driver_framework.machine.Event events.Notify Unit := {
 }
 
 /-- [psp_flow::events::{impl core::clone::Clone for psp_flow::events::ReqPay}::clone]:
-    Source: 'psp-flow/src/events.rs', lines 44:9-44:14
+    Source: 'psp-flow/src/events.rs', lines 42:9-42:14
     Visibility: public -/
 def events.ReqPay.Insts.CoreCloneClone.clone
   (self : events.ReqPay) : Result events.ReqPay := do
   ok self
 
 /-- Trait implementation: [psp_flow::events::{impl core::clone::Clone for psp_flow::events::ReqPay}]
-    Source: 'psp-flow/src/events.rs', lines 44:9-44:14 -/
+    Source: 'psp-flow/src/events.rs', lines 42:9-42:14 -/
 @[reducible]
 def events.ReqPay.Insts.CoreCloneClone : core.clone.Clone events.ReqPay := {
   clone := events.ReqPay.Insts.CoreCloneClone.clone
 }
 
 /-- Trait implementation: [psp_flow::events::{impl core::marker::Copy for psp_flow::events::ReqPay}]
-    Source: 'psp-flow/src/events.rs', lines 44:16-44:20 -/
+    Source: 'psp-flow/src/events.rs', lines 42:16-42:20 -/
 @[reducible]
 def events.ReqPay.Insts.CoreMarkerCopy : core.marker.Copy events.ReqPay := {
   cloneInst := events.ReqPay.Insts.CoreCloneClone
 }
 
 /-- [psp_flow::events::{impl core::clone::Clone for psp_flow::events::ReqPayResponse}::clone]:
-    Source: 'psp-flow/src/events.rs', lines 47:9-47:14
+    Source: 'psp-flow/src/events.rs', lines 45:9-45:14
     Visibility: public -/
 def events.ReqPayResponse.Insts.CoreCloneClone.clone
   (self : events.ReqPayResponse) : Result events.ReqPayResponse := do
   ok self
 
 /-- Trait implementation: [psp_flow::events::{impl core::clone::Clone for psp_flow::events::ReqPayResponse}]
-    Source: 'psp-flow/src/events.rs', lines 47:9-47:14 -/
+    Source: 'psp-flow/src/events.rs', lines 45:9-45:14 -/
 @[reducible]
 def events.ReqPayResponse.Insts.CoreCloneClone : core.clone.Clone
   events.ReqPayResponse := {
@@ -619,29 +619,29 @@ def events.ReqPayResponse.Insts.CoreCloneClone : core.clone.Clone
 }
 
 /-- Trait implementation: [psp_flow::events::{impl core::marker::Copy for psp_flow::events::ReqPayResponse}]
-    Source: 'psp-flow/src/events.rs', lines 47:16-47:20 -/
+    Source: 'psp-flow/src/events.rs', lines 45:16-45:20 -/
 @[reducible]
 def events.ReqPayResponse.Insts.CoreMarkerCopy : core.marker.Copy
   events.ReqPayResponse := {
   cloneInst := events.ReqPayResponse.Insts.CoreCloneClone
 }
 
-/-- Trait implementation: [psp_flow::events::{impl psp_flow::events::Event<psp_flow::events::ReqPayResponse> for psp_flow::events::ReqPay}]
-    Source: 'psp-flow/src/events.rs', lines 50:0-50:57 -/
+/-- Trait implementation: [psp_flow::events::{impl driver_framework::machine::Event<psp_flow::events::ReqPayResponse> for psp_flow::events::ReqPay}]
+    Source: 'psp-flow/src/events.rs', lines 48:0-48:57 -/
 @[reducible]
-def events.ReqPay.Insts.Psp_flowEventsEventReqPayResponse : events.Event
-  events.ReqPay events.ReqPayResponse := {
+def events.ReqPay.Insts.Driver_frameworkMachineEventReqPayResponse :
+  driver_framework.machine.Event events.ReqPay events.ReqPayResponse := {
 }
 
 /-- [psp_flow::events::{impl core::clone::Clone for psp_flow::events::AwaitCallback}::clone]:
-    Source: 'psp-flow/src/events.rs', lines 52:9-52:14
+    Source: 'psp-flow/src/events.rs', lines 50:9-50:14
     Visibility: public -/
 def events.AwaitCallback.Insts.CoreCloneClone.clone
   (self : events.AwaitCallback) : Result events.AwaitCallback := do
   ok self
 
 /-- Trait implementation: [psp_flow::events::{impl core::clone::Clone for psp_flow::events::AwaitCallback}]
-    Source: 'psp-flow/src/events.rs', lines 52:9-52:14 -/
+    Source: 'psp-flow/src/events.rs', lines 50:9-50:14 -/
 @[reducible]
 def events.AwaitCallback.Insts.CoreCloneClone : core.clone.Clone
   events.AwaitCallback := {
@@ -649,7 +649,7 @@ def events.AwaitCallback.Insts.CoreCloneClone : core.clone.Clone
 }
 
 /-- Trait implementation: [psp_flow::events::{impl core::marker::Copy for psp_flow::events::AwaitCallback}]
-    Source: 'psp-flow/src/events.rs', lines 52:16-52:20 -/
+    Source: 'psp-flow/src/events.rs', lines 50:16-50:20 -/
 @[reducible]
 def events.AwaitCallback.Insts.CoreMarkerCopy : core.marker.Copy
   events.AwaitCallback := {
@@ -657,14 +657,14 @@ def events.AwaitCallback.Insts.CoreMarkerCopy : core.marker.Copy
 }
 
 /-- [psp_flow::events::{impl core::clone::Clone for psp_flow::events::Callback}::clone]:
-    Source: 'psp-flow/src/events.rs', lines 55:9-55:14
+    Source: 'psp-flow/src/events.rs', lines 53:9-53:14
     Visibility: public -/
 def events.Callback.Insts.CoreCloneClone.clone
   (self : events.Callback) : Result events.Callback := do
   ok self
 
 /-- Trait implementation: [psp_flow::events::{impl core::clone::Clone for psp_flow::events::Callback}]
-    Source: 'psp-flow/src/events.rs', lines 55:9-55:14 -/
+    Source: 'psp-flow/src/events.rs', lines 53:9-53:14 -/
 @[reducible]
 def events.Callback.Insts.CoreCloneClone : core.clone.Clone events.Callback
   := {
@@ -672,22 +672,22 @@ def events.Callback.Insts.CoreCloneClone : core.clone.Clone events.Callback
 }
 
 /-- Trait implementation: [psp_flow::events::{impl core::marker::Copy for psp_flow::events::Callback}]
-    Source: 'psp-flow/src/events.rs', lines 55:16-55:20 -/
+    Source: 'psp-flow/src/events.rs', lines 53:16-53:20 -/
 @[reducible]
 def events.Callback.Insts.CoreMarkerCopy : core.marker.Copy events.Callback
   := {
   cloneInst := events.Callback.Insts.CoreCloneClone
 }
 
-/-- Trait implementation: [psp_flow::events::{impl psp_flow::events::Event<psp_flow::events::Callback> for psp_flow::events::AwaitCallback}]
-    Source: 'psp-flow/src/events.rs', lines 63:0-63:58 -/
+/-- Trait implementation: [psp_flow::events::{impl driver_framework::machine::Event<psp_flow::events::Callback> for psp_flow::events::AwaitCallback}]
+    Source: 'psp-flow/src/events.rs', lines 61:0-61:58 -/
 @[reducible]
-def events.AwaitCallback.Insts.Psp_flowEventsEventCallback : events.Event
-  events.AwaitCallback events.Callback := {
+def events.AwaitCallback.Insts.Driver_frameworkMachineEventCallback :
+  driver_framework.machine.Event events.AwaitCallback events.Callback := {
 }
 
 /-- [psp_flow::events::{impl core::clone::Clone for psp_flow::events::AwaitDeemedResolution}::clone]:
-    Source: 'psp-flow/src/events.rs', lines 65:9-65:14
+    Source: 'psp-flow/src/events.rs', lines 63:9-63:14
     Visibility: public -/
 def events.AwaitDeemedResolution.Insts.CoreCloneClone.clone
   (self : events.AwaitDeemedResolution) :
@@ -696,7 +696,7 @@ def events.AwaitDeemedResolution.Insts.CoreCloneClone.clone
   ok self
 
 /-- Trait implementation: [psp_flow::events::{impl core::clone::Clone for psp_flow::events::AwaitDeemedResolution}]
-    Source: 'psp-flow/src/events.rs', lines 65:9-65:14 -/
+    Source: 'psp-flow/src/events.rs', lines 63:9-63:14 -/
 @[reducible]
 def events.AwaitDeemedResolution.Insts.CoreCloneClone : core.clone.Clone
   events.AwaitDeemedResolution := {
@@ -704,7 +704,7 @@ def events.AwaitDeemedResolution.Insts.CoreCloneClone : core.clone.Clone
 }
 
 /-- Trait implementation: [psp_flow::events::{impl core::marker::Copy for psp_flow::events::AwaitDeemedResolution}]
-    Source: 'psp-flow/src/events.rs', lines 65:16-65:20 -/
+    Source: 'psp-flow/src/events.rs', lines 63:16-63:20 -/
 @[reducible]
 def events.AwaitDeemedResolution.Insts.CoreMarkerCopy : core.marker.Copy
   events.AwaitDeemedResolution := {
@@ -712,14 +712,14 @@ def events.AwaitDeemedResolution.Insts.CoreMarkerCopy : core.marker.Copy
 }
 
 /-- [psp_flow::events::{impl core::clone::Clone for psp_flow::events::Resolution}::clone]:
-    Source: 'psp-flow/src/events.rs', lines 68:9-68:14
+    Source: 'psp-flow/src/events.rs', lines 66:9-66:14
     Visibility: public -/
 def events.Resolution.Insts.CoreCloneClone.clone
   (self : events.Resolution) : Result events.Resolution := do
   ok self
 
 /-- Trait implementation: [psp_flow::events::{impl core::clone::Clone for psp_flow::events::Resolution}]
-    Source: 'psp-flow/src/events.rs', lines 68:9-68:14 -/
+    Source: 'psp-flow/src/events.rs', lines 66:9-66:14 -/
 @[reducible]
 def events.Resolution.Insts.CoreCloneClone : core.clone.Clone events.Resolution
   := {
@@ -727,29 +727,30 @@ def events.Resolution.Insts.CoreCloneClone : core.clone.Clone events.Resolution
 }
 
 /-- Trait implementation: [psp_flow::events::{impl core::marker::Copy for psp_flow::events::Resolution}]
-    Source: 'psp-flow/src/events.rs', lines 68:16-68:20 -/
+    Source: 'psp-flow/src/events.rs', lines 66:16-66:20 -/
 @[reducible]
 def events.Resolution.Insts.CoreMarkerCopy : core.marker.Copy events.Resolution
   := {
   cloneInst := events.Resolution.Insts.CoreCloneClone
 }
 
-/-- Trait implementation: [psp_flow::events::{impl psp_flow::events::Event<psp_flow::events::Resolution> for psp_flow::events::AwaitDeemedResolution}]
-    Source: 'psp-flow/src/events.rs', lines 75:0-75:68 -/
+/-- Trait implementation: [psp_flow::events::{impl driver_framework::machine::Event<psp_flow::events::Resolution> for psp_flow::events::AwaitDeemedResolution}]
+    Source: 'psp-flow/src/events.rs', lines 73:0-73:68 -/
 @[reducible]
-def events.AwaitDeemedResolution.Insts.Psp_flowEventsEventResolution :
-  events.Event events.AwaitDeemedResolution events.Resolution := {
+def events.AwaitDeemedResolution.Insts.Driver_frameworkMachineEventResolution :
+  driver_framework.machine.Event events.AwaitDeemedResolution events.Resolution
+  := {
 }
 
 /-- [psp_flow::events::{impl core::clone::Clone for psp_flow::events::AwaitForcedReversal}::clone]:
-    Source: 'psp-flow/src/events.rs', lines 77:9-77:14
+    Source: 'psp-flow/src/events.rs', lines 75:9-75:14
     Visibility: public -/
 def events.AwaitForcedReversal.Insts.CoreCloneClone.clone
   (self : events.AwaitForcedReversal) : Result events.AwaitForcedReversal := do
   ok self
 
 /-- Trait implementation: [psp_flow::events::{impl core::clone::Clone for psp_flow::events::AwaitForcedReversal}]
-    Source: 'psp-flow/src/events.rs', lines 77:9-77:14 -/
+    Source: 'psp-flow/src/events.rs', lines 75:9-75:14 -/
 @[reducible]
 def events.AwaitForcedReversal.Insts.CoreCloneClone : core.clone.Clone
   events.AwaitForcedReversal := {
@@ -757,29 +758,29 @@ def events.AwaitForcedReversal.Insts.CoreCloneClone : core.clone.Clone
 }
 
 /-- Trait implementation: [psp_flow::events::{impl core::marker::Copy for psp_flow::events::AwaitForcedReversal}]
-    Source: 'psp-flow/src/events.rs', lines 77:16-77:20 -/
+    Source: 'psp-flow/src/events.rs', lines 75:16-75:20 -/
 @[reducible]
 def events.AwaitForcedReversal.Insts.CoreMarkerCopy : core.marker.Copy
   events.AwaitForcedReversal := {
   cloneInst := events.AwaitForcedReversal.Insts.CoreCloneClone
 }
 
-/-- Trait implementation: [psp_flow::events::{impl psp_flow::events::Event<()> for psp_flow::events::AwaitForcedReversal}]
-    Source: 'psp-flow/src/events.rs', lines 80:0-80:58 -/
+/-- Trait implementation: [psp_flow::events::{impl driver_framework::machine::Event<()> for psp_flow::events::AwaitForcedReversal}]
+    Source: 'psp-flow/src/events.rs', lines 78:0-78:58 -/
 @[reducible]
-def events.AwaitForcedReversal.Insts.Psp_flowEventsEventTuple : events.Event
-  events.AwaitForcedReversal Unit := {
+def events.AwaitForcedReversal.Insts.Driver_frameworkMachineEventTuple :
+  driver_framework.machine.Event events.AwaitForcedReversal Unit := {
 }
 
 /-- [psp_flow::events::{impl core::clone::Clone for psp_flow::events::AnyEvent}::clone]:
-    Source: 'psp-flow/src/events.rs', lines 85:9-85:14
+    Source: 'psp-flow/src/events.rs', lines 83:9-83:14
     Visibility: public -/
 def events.AnyEvent.Insts.CoreCloneClone.clone
   (self : events.AnyEvent) : Result events.AnyEvent := do
   ok self
 
 /-- Trait implementation: [psp_flow::events::{impl core::clone::Clone for psp_flow::events::AnyEvent}]
-    Source: 'psp-flow/src/events.rs', lines 85:9-85:14 -/
+    Source: 'psp-flow/src/events.rs', lines 83:9-83:14 -/
 @[reducible]
 def events.AnyEvent.Insts.CoreCloneClone : core.clone.Clone events.AnyEvent
   := {
@@ -787,7 +788,7 @@ def events.AnyEvent.Insts.CoreCloneClone : core.clone.Clone events.AnyEvent
 }
 
 /-- Trait implementation: [psp_flow::events::{impl core::marker::Copy for psp_flow::events::AnyEvent}]
-    Source: 'psp-flow/src/events.rs', lines 85:16-85:20 -/
+    Source: 'psp-flow/src/events.rs', lines 83:16-83:20 -/
 @[reducible]
 def events.AnyEvent.Insts.CoreMarkerCopy : core.marker.Copy events.AnyEvent
   := {
@@ -795,14 +796,14 @@ def events.AnyEvent.Insts.CoreMarkerCopy : core.marker.Copy events.AnyEvent
 }
 
 /-- [psp_flow::events::{impl core::clone::Clone for psp_flow::events::AnyResponse}::clone]:
-    Source: 'psp-flow/src/events.rs', lines 100:9-100:14
+    Source: 'psp-flow/src/events.rs', lines 98:9-98:14
     Visibility: public -/
 def events.AnyResponse.Insts.CoreCloneClone.clone
   (self : events.AnyResponse) : Result events.AnyResponse := do
   ok self
 
 /-- Trait implementation: [psp_flow::events::{impl core::clone::Clone for psp_flow::events::AnyResponse}]
-    Source: 'psp-flow/src/events.rs', lines 100:9-100:14 -/
+    Source: 'psp-flow/src/events.rs', lines 98:9-98:14 -/
 @[reducible]
 def events.AnyResponse.Insts.CoreCloneClone : core.clone.Clone
   events.AnyResponse := {
@@ -810,7 +811,7 @@ def events.AnyResponse.Insts.CoreCloneClone : core.clone.Clone
 }
 
 /-- Trait implementation: [psp_flow::events::{impl core::marker::Copy for psp_flow::events::AnyResponse}]
-    Source: 'psp-flow/src/events.rs', lines 100:16-100:20 -/
+    Source: 'psp-flow/src/events.rs', lines 98:16-98:20 -/
 @[reducible]
 def events.AnyResponse.Insts.CoreMarkerCopy : core.marker.Copy
   events.AnyResponse := {
@@ -818,7 +819,7 @@ def events.AnyResponse.Insts.CoreMarkerCopy : core.marker.Copy
 }
 
 /-- [psp_flow::events::{psp_flow::events::AnyEvent}::party]:
-    Source: 'psp-flow/src/events.rs', lines 112:4-117:5
+    Source: 'psp-flow/src/events.rs', lines 110:4-115:5
     Visibility: public -/
 def events.AnyEvent.party (self : events.AnyEvent) : Result events.Party := do
   match self with
@@ -832,7 +833,7 @@ def events.AnyEvent.party (self : events.AnyEvent) : Result events.Party := do
   | events.AnyEvent.AwaitForcedReversal _ => ok events.Party.Npci
 
 /-- [psp_flow::events::{psp_flow::events::AnyEvent}::is_user_notification]:
-    Source: 'psp-flow/src/events.rs', lines 120:4-125:5
+    Source: 'psp-flow/src/events.rs', lines 118:4-123:5
     Visibility: public -/
 def events.AnyEvent.is_user_notification
   (self : events.AnyEvent) : Result Bool := do
@@ -1238,41 +1239,13 @@ def machine.PayerPay.Insts.CoreMarkerCopy : core.marker.Copy machine.PayerPay
   cloneInst := machine.PayerPay.Insts.CoreCloneClone
 }
 
-/-- [psp_flow::machine::{impl core::clone::Clone for psp_flow::machine::Next}::clone]:
-    Source: 'psp-flow/src/machine.rs', lines 66:9-66:14
-    Visibility: public -/
-def machine.Next.Insts.CoreCloneClone.clone
-  (self : machine.Next) : Result machine.Next := do
-  ok self
-
-/-- Trait implementation: [psp_flow::machine::{impl core::clone::Clone for psp_flow::machine::Next}]
-    Source: 'psp-flow/src/machine.rs', lines 66:9-66:14 -/
-@[reducible]
-def machine.Next.Insts.CoreCloneClone : core.clone.Clone machine.Next := {
-  clone := machine.Next.Insts.CoreCloneClone.clone
-}
-
-/-- Trait implementation: [psp_flow::machine::{impl core::marker::Copy for psp_flow::machine::Next}]
-    Source: 'psp-flow/src/machine.rs', lines 66:16-66:20 -/
-@[reducible]
-def machine.Next.Insts.CoreMarkerCopy : core.marker.Copy machine.Next := {
-  cloneInst := machine.Next.Insts.CoreCloneClone
-}
-
 /-- [psp_flow::machine::start]:
-    Source: 'psp-flow/src/machine.rs', lines 74:0-76:1
+    Source: 'psp-flow/src/machine.rs', lines 71:0-73:1
     Visibility: public -/
 def machine.start
   (id : values.TxnId) (payer : values.PayerId) : Result machine.PayerPay := do
   let t ← entity.TxnInitiated.new id payer
   ok (machine.PayerPay.AtGetPaymentIntent { txn := t })
-
-/-- [psp_flow::machine::{psp_flow::machine::AtGetPaymentIntent}::event]:
-    Source: 'psp-flow/src/machine.rs', lines 81:4-83:5
-    Visibility: public -/
-def machine.AtGetPaymentIntent.event
-  (self : machine.AtGetPaymentIntent) : Result events.GetPaymentIntent := do
-  ok { payer := self.txn.data.payer }
 
 /-- [psp_flow::values::MAX_AMOUNT_PAISE]
     Source: 'psp-flow/src/values.rs', lines 76:0-76:45
@@ -1304,286 +1277,575 @@ def values.validate_pay_intent
           ok (core.result.Result.Ok
             { payee := raw.payee, amount := raw.amount })
 
-/-- [psp_flow::machine::{psp_flow::machine::AtGetPaymentIntent}::resume]:
-    Source: 'psp-flow/src/machine.rs', lines 84:4-89:5
+/-- [psp_flow::machine::{impl driver_framework::machine::WaitPoint<psp_flow::machine::PayerPay, psp_flow::entity::Txn<psp_flow::entity::Terminal>, psp_flow::events::GetPaymentIntent, psp_flow::values::RawIntent> for psp_flow::machine::AtGetPaymentIntent}::resume]:
+    Source: 'psp-flow/src/machine.rs', lines 82:4-87:5
     Visibility: public -/
-def machine.AtGetPaymentIntent.resume
+def
+  machine.AtGetPaymentIntent.Insts.Driver_frameworkMachineWaitPointPayerPayTxnTerminalGetPaymentIntentRawIntent.resume
   (self : machine.AtGetPaymentIntent) (raw : values.RawIntent) :
-  Result machine.Next
+  Result (driver_framework.machine.Next machine.PayerPay (entity.Txn
+    entity.Terminal))
   := do
   let r ← values.validate_pay_intent self.txn.data.payer raw
   match r with
   | core.result.Result.Ok intent =>
-    ok (machine.Next.Wait (machine.PayerPay.AtCollectMpin
+    ok (driver_framework.machine.Next.Wait (machine.PayerPay.AtCollectMpin
       { txn := self.txn, intent }))
   | core.result.Result.Err reason =>
-    ok (machine.Next.Wait (machine.PayerPay.AtShowError
+    ok (driver_framework.machine.Next.Wait (machine.PayerPay.AtShowError
       { txn := self.txn, reason }))
 
-/-- [psp_flow::machine::{psp_flow::machine::AtShowError}::event]:
-    Source: 'psp-flow/src/machine.rs', lines 93:4-95:5
+/-- [psp_flow::machine::{impl driver_framework::machine::WaitPoint<psp_flow::machine::PayerPay, psp_flow::entity::Txn<psp_flow::entity::Terminal>, psp_flow::events::GetPaymentIntent, psp_flow::values::RawIntent> for psp_flow::machine::AtGetPaymentIntent}::event]:
+    Source: 'psp-flow/src/machine.rs', lines 79:4-81:5
     Visibility: public -/
-def machine.AtShowError.event
+def
+  machine.AtGetPaymentIntent.Insts.Driver_frameworkMachineWaitPointPayerPayTxnTerminalGetPaymentIntentRawIntent.event
+  (self : machine.AtGetPaymentIntent) : Result events.GetPaymentIntent := do
+  ok { payer := self.txn.data.payer }
+
+/-- Trait implementation: [psp_flow::machine::{impl driver_framework::machine::WaitPoint<psp_flow::machine::PayerPay, psp_flow::entity::Txn<psp_flow::entity::Terminal>, psp_flow::events::GetPaymentIntent, psp_flow::values::RawIntent> for psp_flow::machine::AtGetPaymentIntent}]
+    Source: 'psp-flow/src/machine.rs', lines 77:0-87:6 -/
+@[reducible]
+def
+  machine.AtGetPaymentIntent.Insts.Driver_frameworkMachineWaitPointPayerPayTxnTerminalGetPaymentIntentRawIntent
+  : driver_framework.machine.WaitPoint machine.AtGetPaymentIntent
+  machine.PayerPay (entity.Txn entity.Terminal) events.GetPaymentIntent
+  values.RawIntent := {
+  EventInst :=
+    events.GetPaymentIntent.Insts.Driver_frameworkMachineEventRawIntent
+  event :=
+    machine.AtGetPaymentIntent.Insts.Driver_frameworkMachineWaitPointPayerPayTxnTerminalGetPaymentIntentRawIntent.event
+  resume :=
+    machine.AtGetPaymentIntent.Insts.Driver_frameworkMachineWaitPointPayerPayTxnTerminalGetPaymentIntentRawIntent.resume
+}
+
+/-- [psp_flow::machine::{impl driver_framework::machine::WaitPoint<psp_flow::machine::PayerPay, psp_flow::entity::Txn<psp_flow::entity::Terminal>, psp_flow::events::ShowError, ()> for psp_flow::machine::AtShowError}::resume]:
+    Source: 'psp-flow/src/machine.rs', lines 94:4-96:5
+    Visibility: public -/
+def
+  machine.AtShowError.Insts.Driver_frameworkMachineWaitPointPayerPayTxnTerminalShowErrorTuple.resume
+  (self : machine.AtShowError) (_ : Unit) :
+  Result (driver_framework.machine.Next machine.PayerPay (entity.Txn
+    entity.Terminal))
+  := do
+  let t ← entity.TxnInitiated.abandon self.txn
+  let t1 ← entity.TxnAbandoned.terminal t
+  ok (driver_framework.machine.Next.Done t1)
+
+/-- [psp_flow::machine::{impl driver_framework::machine::WaitPoint<psp_flow::machine::PayerPay, psp_flow::entity::Txn<psp_flow::entity::Terminal>, psp_flow::events::ShowError, ()> for psp_flow::machine::AtShowError}::event]:
+    Source: 'psp-flow/src/machine.rs', lines 91:4-93:5
+    Visibility: public -/
+def
+  machine.AtShowError.Insts.Driver_frameworkMachineWaitPointPayerPayTxnTerminalShowErrorTuple.event
   (self : machine.AtShowError) : Result events.ShowError := do
   ok { reason := self.reason }
 
-/-- [psp_flow::machine::{psp_flow::machine::AtShowError}::resume]:
-    Source: 'psp-flow/src/machine.rs', lines 96:4-98:5
-    Visibility: public -/
-def machine.AtShowError.resume
-  (self : machine.AtShowError) (_ : Unit) : Result machine.Next := do
-  let t ← entity.TxnInitiated.abandon self.txn
-  let t1 ← entity.TxnAbandoned.terminal t
-  ok (machine.Next.Done t1)
+/-- Trait implementation: [psp_flow::machine::{impl driver_framework::machine::WaitPoint<psp_flow::machine::PayerPay, psp_flow::entity::Txn<psp_flow::entity::Terminal>, psp_flow::events::ShowError, ()> for psp_flow::machine::AtShowError}]
+    Source: 'psp-flow/src/machine.rs', lines 89:0-96:6 -/
+@[reducible]
+def
+  machine.AtShowError.Insts.Driver_frameworkMachineWaitPointPayerPayTxnTerminalShowErrorTuple
+  : driver_framework.machine.WaitPoint machine.AtShowError machine.PayerPay
+  (entity.Txn entity.Terminal) events.ShowError Unit := {
+  EventInst := events.ShowError.Insts.Driver_frameworkMachineEventTuple
+  event :=
+    machine.AtShowError.Insts.Driver_frameworkMachineWaitPointPayerPayTxnTerminalShowErrorTuple.event
+  resume :=
+    machine.AtShowError.Insts.Driver_frameworkMachineWaitPointPayerPayTxnTerminalShowErrorTuple.resume
+}
 
-/-- [psp_flow::machine::{psp_flow::machine::AtCollectMpin}::event]:
-    Source: 'psp-flow/src/machine.rs', lines 104:4-106:5
+/-- [psp_flow::machine::{impl driver_framework::machine::WaitPoint<psp_flow::machine::PayerPay, psp_flow::entity::Txn<psp_flow::entity::Terminal>, psp_flow::events::CollectMpin, psp_flow::values::Mpin> for psp_flow::machine::AtCollectMpin}::resume]:
+    Source: 'psp-flow/src/machine.rs', lines 105:4-109:5
     Visibility: public -/
-def machine.AtCollectMpin.event
-  (self : machine.AtCollectMpin) : Result events.CollectMpin := do
-  ok { payer := self.txn.data.payer, intent := self.intent }
-
-/-- [psp_flow::machine::{psp_flow::machine::AtCollectMpin}::resume]:
-    Source: 'psp-flow/src/machine.rs', lines 107:4-111:5
-    Visibility: public -/
-def machine.AtCollectMpin.resume
+def
+  machine.AtCollectMpin.Insts.Driver_frameworkMachineWaitPointPayerPayTxnTerminalCollectMpinMpin.resume
   (self : machine.AtCollectMpin) (mpin : values.Mpin) :
-  Result machine.Next
+  Result (driver_framework.machine.Next machine.PayerPay (entity.Txn
+    entity.Terminal))
   := do
   let txn ← entity.TxnInitiated.authenticate self.txn self.intent mpin
   let req ← entity.TxnAuthenticated.build_req_pay txn
-  ok (machine.Next.Wait (machine.PayerPay.AtReqPay { txn, req }))
+  ok (driver_framework.machine.Next.Wait (machine.PayerPay.AtReqPay
+    { txn, req }))
 
-/-- [psp_flow::machine::{psp_flow::machine::AtReqPay}::event]:
-    Source: 'psp-flow/src/machine.rs', lines 117:4-119:5
+/-- [psp_flow::machine::{impl driver_framework::machine::WaitPoint<psp_flow::machine::PayerPay, psp_flow::entity::Txn<psp_flow::entity::Terminal>, psp_flow::events::CollectMpin, psp_flow::values::Mpin> for psp_flow::machine::AtCollectMpin}::event]:
+    Source: 'psp-flow/src/machine.rs', lines 102:4-104:5
     Visibility: public -/
-def machine.AtReqPay.event
-  (self : machine.AtReqPay) : Result events.ReqPay := do
-  ok { req := self.req }
+def
+  machine.AtCollectMpin.Insts.Driver_frameworkMachineWaitPointPayerPayTxnTerminalCollectMpinMpin.event
+  (self : machine.AtCollectMpin) : Result events.CollectMpin := do
+  ok { payer := self.txn.data.payer, intent := self.intent }
 
-/-- [psp_flow::machine::{psp_flow::machine::AtReqPay}::resume]:
-    Source: 'psp-flow/src/machine.rs', lines 120:4-127:5
+/-- Trait implementation: [psp_flow::machine::{impl driver_framework::machine::WaitPoint<psp_flow::machine::PayerPay, psp_flow::entity::Txn<psp_flow::entity::Terminal>, psp_flow::events::CollectMpin, psp_flow::values::Mpin> for psp_flow::machine::AtCollectMpin}]
+    Source: 'psp-flow/src/machine.rs', lines 100:0-109:6 -/
+@[reducible]
+def
+  machine.AtCollectMpin.Insts.Driver_frameworkMachineWaitPointPayerPayTxnTerminalCollectMpinMpin
+  : driver_framework.machine.WaitPoint machine.AtCollectMpin machine.PayerPay
+  (entity.Txn entity.Terminal) events.CollectMpin values.Mpin := {
+  EventInst := events.CollectMpin.Insts.Driver_frameworkMachineEventMpin
+  event :=
+    machine.AtCollectMpin.Insts.Driver_frameworkMachineWaitPointPayerPayTxnTerminalCollectMpinMpin.event
+  resume :=
+    machine.AtCollectMpin.Insts.Driver_frameworkMachineWaitPointPayerPayTxnTerminalCollectMpinMpin.resume
+}
+
+/-- [psp_flow::machine::{impl driver_framework::machine::WaitPoint<psp_flow::machine::PayerPay, psp_flow::entity::Txn<psp_flow::entity::Terminal>, psp_flow::events::ReqPay, psp_flow::events::ReqPayResponse> for psp_flow::machine::AtReqPay}::resume]:
+    Source: 'psp-flow/src/machine.rs', lines 118:4-125:5
     Visibility: public -/
-def machine.AtReqPay.resume
+def
+  machine.AtReqPay.Insts.Driver_frameworkMachineWaitPointPayerPayTxnTerminalReqPayReqPayResponse.resume
   (self : machine.AtReqPay) (resp : events.ReqPayResponse) :
-  Result machine.Next
+  Result (driver_framework.machine.Next machine.PayerPay (entity.Txn
+    entity.Terminal))
   := do
   match resp with
   | events.ReqPayResponse.Ack =>
     let t ← entity.TxnAuthenticated.submit self.txn self.req
-    ok (machine.Next.Wait (machine.PayerPay.AtAwaitCallback { txn := t }))
+    ok (driver_framework.machine.Next.Wait (machine.PayerPay.AtAwaitCallback
+      { txn := t }))
   | events.ReqPayResponse.Rejected reason =>
-    ok (machine.Next.Wait (machine.PayerPay.AtNotifyRejected
+    ok (driver_framework.machine.Next.Wait (machine.PayerPay.AtNotifyRejected
       { txn := self.txn, req := self.req, reason }))
 
-/-- [psp_flow::machine::{psp_flow::machine::AtNotifyRejected}::event]:
-    Source: 'psp-flow/src/machine.rs', lines 131:4-133:5
+/-- [psp_flow::machine::{impl driver_framework::machine::WaitPoint<psp_flow::machine::PayerPay, psp_flow::entity::Txn<psp_flow::entity::Terminal>, psp_flow::events::ReqPay, psp_flow::events::ReqPayResponse> for psp_flow::machine::AtReqPay}::event]:
+    Source: 'psp-flow/src/machine.rs', lines 115:4-117:5
     Visibility: public -/
-def machine.AtNotifyRejected.event
+def
+  machine.AtReqPay.Insts.Driver_frameworkMachineWaitPointPayerPayTxnTerminalReqPayReqPayResponse.event
+  (self : machine.AtReqPay) : Result events.ReqPay := do
+  ok { req := self.req }
+
+/-- Trait implementation: [psp_flow::machine::{impl driver_framework::machine::WaitPoint<psp_flow::machine::PayerPay, psp_flow::entity::Txn<psp_flow::entity::Terminal>, psp_flow::events::ReqPay, psp_flow::events::ReqPayResponse> for psp_flow::machine::AtReqPay}]
+    Source: 'psp-flow/src/machine.rs', lines 113:0-125:6 -/
+@[reducible]
+def
+  machine.AtReqPay.Insts.Driver_frameworkMachineWaitPointPayerPayTxnTerminalReqPayReqPayResponse
+  : driver_framework.machine.WaitPoint machine.AtReqPay machine.PayerPay
+  (entity.Txn entity.Terminal) events.ReqPay events.ReqPayResponse := {
+  EventInst := events.ReqPay.Insts.Driver_frameworkMachineEventReqPayResponse
+  event :=
+    machine.AtReqPay.Insts.Driver_frameworkMachineWaitPointPayerPayTxnTerminalReqPayReqPayResponse.event
+  resume :=
+    machine.AtReqPay.Insts.Driver_frameworkMachineWaitPointPayerPayTxnTerminalReqPayReqPayResponse.resume
+}
+
+/-- [psp_flow::machine::{impl driver_framework::machine::WaitPoint<psp_flow::machine::PayerPay, psp_flow::entity::Txn<psp_flow::entity::Terminal>, psp_flow::events::Notify, ()> for psp_flow::machine::AtNotifyRejected}::resume]:
+    Source: 'psp-flow/src/machine.rs', lines 132:4-134:5
+    Visibility: public -/
+def
+  machine.AtNotifyRejected.Insts.Driver_frameworkMachineWaitPointPayerPayTxnTerminalNotifyTuple.resume
+  (self : machine.AtNotifyRejected) (_ : Unit) :
+  Result (driver_framework.machine.Next machine.PayerPay (entity.Txn
+    entity.Terminal))
+  := do
+  let t ← entity.TxnAuthenticated.reject self.txn self.req self.reason
+  let t1 ← entity.TxnFailed.terminal t
+  ok (driver_framework.machine.Next.Done t1)
+
+/-- [psp_flow::machine::{impl driver_framework::machine::WaitPoint<psp_flow::machine::PayerPay, psp_flow::entity::Txn<psp_flow::entity::Terminal>, psp_flow::events::Notify, ()> for psp_flow::machine::AtNotifyRejected}::event]:
+    Source: 'psp-flow/src/machine.rs', lines 129:4-131:5
+    Visibility: public -/
+def
+  machine.AtNotifyRejected.Insts.Driver_frameworkMachineWaitPointPayerPayTxnTerminalNotifyTuple.event
   (self : machine.AtNotifyRejected) : Result events.Notify := do
   ok { status := (values.Status.Failed self.reason) }
 
-/-- [psp_flow::machine::{psp_flow::machine::AtNotifyRejected}::resume]:
-    Source: 'psp-flow/src/machine.rs', lines 134:4-136:5
-    Visibility: public -/
-def machine.AtNotifyRejected.resume
-  (self : machine.AtNotifyRejected) (_ : Unit) : Result machine.Next := do
-  let t ← entity.TxnAuthenticated.reject self.txn self.req self.reason
-  let t1 ← entity.TxnFailed.terminal t
-  ok (machine.Next.Done t1)
+/-- Trait implementation: [psp_flow::machine::{impl driver_framework::machine::WaitPoint<psp_flow::machine::PayerPay, psp_flow::entity::Txn<psp_flow::entity::Terminal>, psp_flow::events::Notify, ()> for psp_flow::machine::AtNotifyRejected}]
+    Source: 'psp-flow/src/machine.rs', lines 127:0-134:6 -/
+@[reducible]
+def
+  machine.AtNotifyRejected.Insts.Driver_frameworkMachineWaitPointPayerPayTxnTerminalNotifyTuple
+  : driver_framework.machine.WaitPoint machine.AtNotifyRejected
+  machine.PayerPay (entity.Txn entity.Terminal) events.Notify Unit := {
+  EventInst := events.Notify.Insts.Driver_frameworkMachineEventTuple
+  event :=
+    machine.AtNotifyRejected.Insts.Driver_frameworkMachineWaitPointPayerPayTxnTerminalNotifyTuple.event
+  resume :=
+    machine.AtNotifyRejected.Insts.Driver_frameworkMachineWaitPointPayerPayTxnTerminalNotifyTuple.resume
+}
 
-/-- [psp_flow::machine::{psp_flow::machine::AtAwaitCallback}::event]:
-    Source: 'psp-flow/src/machine.rs', lines 142:4-144:5
+/-- [psp_flow::machine::{impl driver_framework::machine::WaitPoint<psp_flow::machine::PayerPay, psp_flow::entity::Txn<psp_flow::entity::Terminal>, psp_flow::events::AwaitCallback, psp_flow::events::Callback> for psp_flow::machine::AtAwaitCallback}::resume]:
+    Source: 'psp-flow/src/machine.rs', lines 143:4-152:5
     Visibility: public -/
-def machine.AtAwaitCallback.event
-  (self : machine.AtAwaitCallback) : Result events.AwaitCallback := do
-  ok { timeout_secs := machine.CALLBACK_TIMEOUT_SECS }
-
-/-- [psp_flow::machine::{psp_flow::machine::AtAwaitCallback}::resume]:
-    Source: 'psp-flow/src/machine.rs', lines 145:4-154:5
-    Visibility: public -/
-def machine.AtAwaitCallback.resume
+def
+  machine.AtAwaitCallback.Insts.Driver_frameworkMachineWaitPointPayerPayTxnTerminalAwaitCallbackCallback.resume
   (self : machine.AtAwaitCallback) (cb : events.Callback) :
-  Result machine.Next
+  Result (driver_framework.machine.Next machine.PayerPay (entity.Txn
+    entity.Terminal))
   := do
   match cb with
   | events.Callback.Success debit_ref credit_ref =>
-    ok (machine.Next.Wait (machine.PayerPay.AtNotifySuccess
+    ok (driver_framework.machine.Next.Wait (machine.PayerPay.AtNotifySuccess
       { txn := self.txn, debit_ref, credit_ref }))
   | events.Callback.Failed reason =>
-    ok (machine.Next.Wait (machine.PayerPay.AtNotifyFailed
+    ok (driver_framework.machine.Next.Wait (machine.PayerPay.AtNotifyFailed
       { txn := self.txn, reason }))
   | events.Callback.Deemed =>
-    ok (machine.Next.Wait (machine.PayerPay.AtNotifyProcessing
+    ok (driver_framework.machine.Next.Wait (machine.PayerPay.AtNotifyProcessing
       { txn := self.txn }))
   | events.Callback.Timeout =>
-    ok (machine.Next.Wait (machine.PayerPay.AtNotifyProcessing
+    ok (driver_framework.machine.Next.Wait (machine.PayerPay.AtNotifyProcessing
       { txn := self.txn }))
 
-/-- [psp_flow::machine::{psp_flow::machine::AtNotifySuccess}::event]:
-    Source: 'psp-flow/src/machine.rs', lines 158:4-160:5
+/-- [psp_flow::machine::{impl driver_framework::machine::WaitPoint<psp_flow::machine::PayerPay, psp_flow::entity::Txn<psp_flow::entity::Terminal>, psp_flow::events::AwaitCallback, psp_flow::events::Callback> for psp_flow::machine::AtAwaitCallback}::event]:
+    Source: 'psp-flow/src/machine.rs', lines 140:4-142:5
     Visibility: public -/
-def machine.AtNotifySuccess.event
+def
+  machine.AtAwaitCallback.Insts.Driver_frameworkMachineWaitPointPayerPayTxnTerminalAwaitCallbackCallback.event
+  (self : machine.AtAwaitCallback) : Result events.AwaitCallback := do
+  ok { timeout_secs := machine.CALLBACK_TIMEOUT_SECS }
+
+/-- Trait implementation: [psp_flow::machine::{impl driver_framework::machine::WaitPoint<psp_flow::machine::PayerPay, psp_flow::entity::Txn<psp_flow::entity::Terminal>, psp_flow::events::AwaitCallback, psp_flow::events::Callback> for psp_flow::machine::AtAwaitCallback}]
+    Source: 'psp-flow/src/machine.rs', lines 138:0-152:6 -/
+@[reducible]
+def
+  machine.AtAwaitCallback.Insts.Driver_frameworkMachineWaitPointPayerPayTxnTerminalAwaitCallbackCallback
+  : driver_framework.machine.WaitPoint machine.AtAwaitCallback machine.PayerPay
+  (entity.Txn entity.Terminal) events.AwaitCallback events.Callback := {
+  EventInst := events.AwaitCallback.Insts.Driver_frameworkMachineEventCallback
+  event :=
+    machine.AtAwaitCallback.Insts.Driver_frameworkMachineWaitPointPayerPayTxnTerminalAwaitCallbackCallback.event
+  resume :=
+    machine.AtAwaitCallback.Insts.Driver_frameworkMachineWaitPointPayerPayTxnTerminalAwaitCallbackCallback.resume
+}
+
+/-- [psp_flow::machine::{impl driver_framework::machine::WaitPoint<psp_flow::machine::PayerPay, psp_flow::entity::Txn<psp_flow::entity::Terminal>, psp_flow::events::Notify, ()> for psp_flow::machine::AtNotifySuccess}::resume]:
+    Source: 'psp-flow/src/machine.rs', lines 159:4-161:5
+    Visibility: public -/
+def
+  machine.AtNotifySuccess.Insts.Driver_frameworkMachineWaitPointPayerPayTxnTerminalNotifyTuple.resume
+  (self : machine.AtNotifySuccess) (_ : Unit) :
+  Result (driver_framework.machine.Next machine.PayerPay (entity.Txn
+    entity.Terminal))
+  := do
+  let t ← entity.TxnSubmitted.succeed self.txn self.debit_ref self.credit_ref
+  let t1 ← entity.TxnSuccess.terminal t
+  ok (driver_framework.machine.Next.Done t1)
+
+/-- [psp_flow::machine::{impl driver_framework::machine::WaitPoint<psp_flow::machine::PayerPay, psp_flow::entity::Txn<psp_flow::entity::Terminal>, psp_flow::events::Notify, ()> for psp_flow::machine::AtNotifySuccess}::event]:
+    Source: 'psp-flow/src/machine.rs', lines 156:4-158:5
+    Visibility: public -/
+def
+  machine.AtNotifySuccess.Insts.Driver_frameworkMachineWaitPointPayerPayTxnTerminalNotifyTuple.event
   (self : machine.AtNotifySuccess) : Result events.Notify := do
   ok { status := values.Status.Successful }
 
-/-- [psp_flow::machine::{psp_flow::machine::AtNotifySuccess}::resume]:
-    Source: 'psp-flow/src/machine.rs', lines 161:4-163:5
-    Visibility: public -/
-def machine.AtNotifySuccess.resume
-  (self : machine.AtNotifySuccess) (_ : Unit) : Result machine.Next := do
-  let t ← entity.TxnSubmitted.succeed self.txn self.debit_ref self.credit_ref
-  let t1 ← entity.TxnSuccess.terminal t
-  ok (machine.Next.Done t1)
+/-- Trait implementation: [psp_flow::machine::{impl driver_framework::machine::WaitPoint<psp_flow::machine::PayerPay, psp_flow::entity::Txn<psp_flow::entity::Terminal>, psp_flow::events::Notify, ()> for psp_flow::machine::AtNotifySuccess}]
+    Source: 'psp-flow/src/machine.rs', lines 154:0-161:6 -/
+@[reducible]
+def
+  machine.AtNotifySuccess.Insts.Driver_frameworkMachineWaitPointPayerPayTxnTerminalNotifyTuple
+  : driver_framework.machine.WaitPoint machine.AtNotifySuccess machine.PayerPay
+  (entity.Txn entity.Terminal) events.Notify Unit := {
+  EventInst := events.Notify.Insts.Driver_frameworkMachineEventTuple
+  event :=
+    machine.AtNotifySuccess.Insts.Driver_frameworkMachineWaitPointPayerPayTxnTerminalNotifyTuple.event
+  resume :=
+    machine.AtNotifySuccess.Insts.Driver_frameworkMachineWaitPointPayerPayTxnTerminalNotifyTuple.resume
+}
 
-/-- [psp_flow::machine::{psp_flow::machine::AtNotifyFailed}::event]:
-    Source: 'psp-flow/src/machine.rs', lines 167:4-169:5
+/-- [psp_flow::machine::{impl driver_framework::machine::WaitPoint<psp_flow::machine::PayerPay, psp_flow::entity::Txn<psp_flow::entity::Terminal>, psp_flow::events::Notify, ()> for psp_flow::machine::AtNotifyFailed}::resume]:
+    Source: 'psp-flow/src/machine.rs', lines 168:4-170:5
     Visibility: public -/
-def machine.AtNotifyFailed.event
+def
+  machine.AtNotifyFailed.Insts.Driver_frameworkMachineWaitPointPayerPayTxnTerminalNotifyTuple.resume
+  (self : machine.AtNotifyFailed) (_ : Unit) :
+  Result (driver_framework.machine.Next machine.PayerPay (entity.Txn
+    entity.Terminal))
+  := do
+  let t ← entity.TxnSubmitted.fail self.txn self.reason
+  let t1 ← entity.TxnFailed.terminal t
+  ok (driver_framework.machine.Next.Done t1)
+
+/-- [psp_flow::machine::{impl driver_framework::machine::WaitPoint<psp_flow::machine::PayerPay, psp_flow::entity::Txn<psp_flow::entity::Terminal>, psp_flow::events::Notify, ()> for psp_flow::machine::AtNotifyFailed}::event]:
+    Source: 'psp-flow/src/machine.rs', lines 165:4-167:5
+    Visibility: public -/
+def
+  machine.AtNotifyFailed.Insts.Driver_frameworkMachineWaitPointPayerPayTxnTerminalNotifyTuple.event
   (self : machine.AtNotifyFailed) : Result events.Notify := do
   ok { status := (values.Status.Failed self.reason) }
 
-/-- [psp_flow::machine::{psp_flow::machine::AtNotifyFailed}::resume]:
-    Source: 'psp-flow/src/machine.rs', lines 170:4-172:5
-    Visibility: public -/
-def machine.AtNotifyFailed.resume
-  (self : machine.AtNotifyFailed) (_ : Unit) : Result machine.Next := do
-  let t ← entity.TxnSubmitted.fail self.txn self.reason
-  let t1 ← entity.TxnFailed.terminal t
-  ok (machine.Next.Done t1)
+/-- Trait implementation: [psp_flow::machine::{impl driver_framework::machine::WaitPoint<psp_flow::machine::PayerPay, psp_flow::entity::Txn<psp_flow::entity::Terminal>, psp_flow::events::Notify, ()> for psp_flow::machine::AtNotifyFailed}]
+    Source: 'psp-flow/src/machine.rs', lines 163:0-170:6 -/
+@[reducible]
+def
+  machine.AtNotifyFailed.Insts.Driver_frameworkMachineWaitPointPayerPayTxnTerminalNotifyTuple
+  : driver_framework.machine.WaitPoint machine.AtNotifyFailed machine.PayerPay
+  (entity.Txn entity.Terminal) events.Notify Unit := {
+  EventInst := events.Notify.Insts.Driver_frameworkMachineEventTuple
+  event :=
+    machine.AtNotifyFailed.Insts.Driver_frameworkMachineWaitPointPayerPayTxnTerminalNotifyTuple.event
+  resume :=
+    machine.AtNotifyFailed.Insts.Driver_frameworkMachineWaitPointPayerPayTxnTerminalNotifyTuple.resume
+}
 
-/-- [psp_flow::machine::{psp_flow::machine::AtNotifyProcessing}::event]:
-    Source: 'psp-flow/src/machine.rs', lines 176:4-178:5
+/-- [psp_flow::machine::{impl driver_framework::machine::WaitPoint<psp_flow::machine::PayerPay, psp_flow::entity::Txn<psp_flow::entity::Terminal>, psp_flow::events::Notify, ()> for psp_flow::machine::AtNotifyProcessing}::resume]:
+    Source: 'psp-flow/src/machine.rs', lines 177:4-179:5
     Visibility: public -/
-def machine.AtNotifyProcessing.event
+def
+  machine.AtNotifyProcessing.Insts.Driver_frameworkMachineWaitPointPayerPayTxnTerminalNotifyTuple.resume
+  (self : machine.AtNotifyProcessing) (_ : Unit) :
+  Result (driver_framework.machine.Next machine.PayerPay (entity.Txn
+    entity.Terminal))
+  := do
+  let t ← entity.TxnSubmitted.deem self.txn
+  ok (driver_framework.machine.Next.Wait (machine.PayerPay.AtAwaitDeemed
+    { txn := t }))
+
+/-- [psp_flow::machine::{impl driver_framework::machine::WaitPoint<psp_flow::machine::PayerPay, psp_flow::entity::Txn<psp_flow::entity::Terminal>, psp_flow::events::Notify, ()> for psp_flow::machine::AtNotifyProcessing}::event]:
+    Source: 'psp-flow/src/machine.rs', lines 174:4-176:5
+    Visibility: public -/
+def
+  machine.AtNotifyProcessing.Insts.Driver_frameworkMachineWaitPointPayerPayTxnTerminalNotifyTuple.event
   (self : machine.AtNotifyProcessing) : Result events.Notify := do
   ok { status := values.Status.Processing }
 
-/-- [psp_flow::machine::{psp_flow::machine::AtNotifyProcessing}::resume]:
-    Source: 'psp-flow/src/machine.rs', lines 179:4-181:5
-    Visibility: public -/
-def machine.AtNotifyProcessing.resume
-  (self : machine.AtNotifyProcessing) (_ : Unit) : Result machine.Next := do
-  let t ← entity.TxnSubmitted.deem self.txn
-  ok (machine.Next.Wait (machine.PayerPay.AtAwaitDeemed { txn := t }))
+/-- Trait implementation: [psp_flow::machine::{impl driver_framework::machine::WaitPoint<psp_flow::machine::PayerPay, psp_flow::entity::Txn<psp_flow::entity::Terminal>, psp_flow::events::Notify, ()> for psp_flow::machine::AtNotifyProcessing}]
+    Source: 'psp-flow/src/machine.rs', lines 172:0-179:6 -/
+@[reducible]
+def
+  machine.AtNotifyProcessing.Insts.Driver_frameworkMachineWaitPointPayerPayTxnTerminalNotifyTuple
+  : driver_framework.machine.WaitPoint machine.AtNotifyProcessing
+  machine.PayerPay (entity.Txn entity.Terminal) events.Notify Unit := {
+  EventInst := events.Notify.Insts.Driver_frameworkMachineEventTuple
+  event :=
+    machine.AtNotifyProcessing.Insts.Driver_frameworkMachineWaitPointPayerPayTxnTerminalNotifyTuple.event
+  resume :=
+    machine.AtNotifyProcessing.Insts.Driver_frameworkMachineWaitPointPayerPayTxnTerminalNotifyTuple.resume
+}
 
-/-- [psp_flow::machine::{psp_flow::machine::AtAwaitDeemed}::event]:
-    Source: 'psp-flow/src/machine.rs', lines 187:4-189:5
+/-- [psp_flow::machine::{impl driver_framework::machine::WaitPoint<psp_flow::machine::PayerPay, psp_flow::entity::Txn<psp_flow::entity::Terminal>, psp_flow::events::AwaitDeemedResolution, psp_flow::events::Resolution> for psp_flow::machine::AtAwaitDeemed}::resume]:
+    Source: 'psp-flow/src/machine.rs', lines 188:4-198:5
     Visibility: public -/
-def machine.AtAwaitDeemed.event
-  (self : machine.AtAwaitDeemed) : Result events.AwaitDeemedResolution := do
-  ok { deadline_days := machine.DEEMED_DEADLINE_DAYS }
-
-/-- [psp_flow::machine::{psp_flow::machine::AtAwaitDeemed}::resume]:
-    Source: 'psp-flow/src/machine.rs', lines 190:4-200:5
-    Visibility: public -/
-def machine.AtAwaitDeemed.resume
+def
+  machine.AtAwaitDeemed.Insts.Driver_frameworkMachineWaitPointPayerPayTxnTerminalAwaitDeemedResolutionResolution.resume
   (self : machine.AtAwaitDeemed) (res : events.Resolution) :
-  Result machine.Next
+  Result (driver_framework.machine.Next machine.PayerPay (entity.Txn
+    entity.Terminal))
   := do
   match res with
   | events.Resolution.DeemedSuccess credit_ref =>
-    ok (machine.Next.Wait (machine.PayerPay.AtNotifyConfirmed
+    ok (driver_framework.machine.Next.Wait (machine.PayerPay.AtNotifyConfirmed
       { txn := self.txn, credit_ref }))
   | events.Resolution.DeemedFailed =>
-    ok (machine.Next.Wait (machine.PayerPay.AtNotifyDeemedReversed
-      { txn := self.txn }))
+    ok (driver_framework.machine.Next.Wait
+      (machine.PayerPay.AtNotifyDeemedReversed { txn := self.txn }))
   | events.Resolution.DeadlineExpired =>
     let t ← entity.TxnDeemed.escalate_reversal self.txn
-    ok (machine.Next.Wait (machine.PayerPay.AtNotifyReversalStart
-      { txn := t }))
+    ok (driver_framework.machine.Next.Wait
+      (machine.PayerPay.AtNotifyReversalStart { txn := t }))
 
-/-- [psp_flow::machine::{psp_flow::machine::AtNotifyConfirmed}::event]:
-    Source: 'psp-flow/src/machine.rs', lines 204:4-206:5
+/-- [psp_flow::machine::{impl driver_framework::machine::WaitPoint<psp_flow::machine::PayerPay, psp_flow::entity::Txn<psp_flow::entity::Terminal>, psp_flow::events::AwaitDeemedResolution, psp_flow::events::Resolution> for psp_flow::machine::AtAwaitDeemed}::event]:
+    Source: 'psp-flow/src/machine.rs', lines 185:4-187:5
     Visibility: public -/
-def machine.AtNotifyConfirmed.event
+def
+  machine.AtAwaitDeemed.Insts.Driver_frameworkMachineWaitPointPayerPayTxnTerminalAwaitDeemedResolutionResolution.event
+  (self : machine.AtAwaitDeemed) : Result events.AwaitDeemedResolution := do
+  ok { deadline_days := machine.DEEMED_DEADLINE_DAYS }
+
+/-- Trait implementation: [psp_flow::machine::{impl driver_framework::machine::WaitPoint<psp_flow::machine::PayerPay, psp_flow::entity::Txn<psp_flow::entity::Terminal>, psp_flow::events::AwaitDeemedResolution, psp_flow::events::Resolution> for psp_flow::machine::AtAwaitDeemed}]
+    Source: 'psp-flow/src/machine.rs', lines 183:0-198:6 -/
+@[reducible]
+def
+  machine.AtAwaitDeemed.Insts.Driver_frameworkMachineWaitPointPayerPayTxnTerminalAwaitDeemedResolutionResolution
+  : driver_framework.machine.WaitPoint machine.AtAwaitDeemed machine.PayerPay
+  (entity.Txn entity.Terminal) events.AwaitDeemedResolution events.Resolution
+  := {
+  EventInst :=
+    events.AwaitDeemedResolution.Insts.Driver_frameworkMachineEventResolution
+  event :=
+    machine.AtAwaitDeemed.Insts.Driver_frameworkMachineWaitPointPayerPayTxnTerminalAwaitDeemedResolutionResolution.event
+  resume :=
+    machine.AtAwaitDeemed.Insts.Driver_frameworkMachineWaitPointPayerPayTxnTerminalAwaitDeemedResolutionResolution.resume
+}
+
+/-- [psp_flow::machine::{impl driver_framework::machine::WaitPoint<psp_flow::machine::PayerPay, psp_flow::entity::Txn<psp_flow::entity::Terminal>, psp_flow::events::Notify, ()> for psp_flow::machine::AtNotifyConfirmed}::resume]:
+    Source: 'psp-flow/src/machine.rs', lines 205:4-207:5
+    Visibility: public -/
+def
+  machine.AtNotifyConfirmed.Insts.Driver_frameworkMachineWaitPointPayerPayTxnTerminalNotifyTuple.resume
+  (self : machine.AtNotifyConfirmed) (_ : Unit) :
+  Result (driver_framework.machine.Next machine.PayerPay (entity.Txn
+    entity.Terminal))
+  := do
+  let t ← entity.TxnDeemed.confirm self.txn self.credit_ref
+  let t1 ← entity.TxnSuccess.terminal t
+  ok (driver_framework.machine.Next.Done t1)
+
+/-- [psp_flow::machine::{impl driver_framework::machine::WaitPoint<psp_flow::machine::PayerPay, psp_flow::entity::Txn<psp_flow::entity::Terminal>, psp_flow::events::Notify, ()> for psp_flow::machine::AtNotifyConfirmed}::event]:
+    Source: 'psp-flow/src/machine.rs', lines 202:4-204:5
+    Visibility: public -/
+def
+  machine.AtNotifyConfirmed.Insts.Driver_frameworkMachineWaitPointPayerPayTxnTerminalNotifyTuple.event
   (self : machine.AtNotifyConfirmed) : Result events.Notify := do
   ok { status := values.Status.Confirmed }
 
-/-- [psp_flow::machine::{psp_flow::machine::AtNotifyConfirmed}::resume]:
-    Source: 'psp-flow/src/machine.rs', lines 207:4-209:5
-    Visibility: public -/
-def machine.AtNotifyConfirmed.resume
-  (self : machine.AtNotifyConfirmed) (_ : Unit) : Result machine.Next := do
-  let t ← entity.TxnDeemed.confirm self.txn self.credit_ref
-  let t1 ← entity.TxnSuccess.terminal t
-  ok (machine.Next.Done t1)
+/-- Trait implementation: [psp_flow::machine::{impl driver_framework::machine::WaitPoint<psp_flow::machine::PayerPay, psp_flow::entity::Txn<psp_flow::entity::Terminal>, psp_flow::events::Notify, ()> for psp_flow::machine::AtNotifyConfirmed}]
+    Source: 'psp-flow/src/machine.rs', lines 200:0-207:6 -/
+@[reducible]
+def
+  machine.AtNotifyConfirmed.Insts.Driver_frameworkMachineWaitPointPayerPayTxnTerminalNotifyTuple
+  : driver_framework.machine.WaitPoint machine.AtNotifyConfirmed
+  machine.PayerPay (entity.Txn entity.Terminal) events.Notify Unit := {
+  EventInst := events.Notify.Insts.Driver_frameworkMachineEventTuple
+  event :=
+    machine.AtNotifyConfirmed.Insts.Driver_frameworkMachineWaitPointPayerPayTxnTerminalNotifyTuple.event
+  resume :=
+    machine.AtNotifyConfirmed.Insts.Driver_frameworkMachineWaitPointPayerPayTxnTerminalNotifyTuple.resume
+}
 
-/-- [psp_flow::machine::{psp_flow::machine::AtNotifyDeemedReversed}::event]:
-    Source: 'psp-flow/src/machine.rs', lines 213:4-215:5
+/-- [psp_flow::machine::{impl driver_framework::machine::WaitPoint<psp_flow::machine::PayerPay, psp_flow::entity::Txn<psp_flow::entity::Terminal>, psp_flow::events::Notify, ()> for psp_flow::machine::AtNotifyDeemedReversed}::resume]:
+    Source: 'psp-flow/src/machine.rs', lines 214:4-216:5
     Visibility: public -/
-def machine.AtNotifyDeemedReversed.event
-  (self : machine.AtNotifyDeemedReversed) : Result events.Notify := do
-  ok { status := values.Status.Reversed }
-
-/-- [psp_flow::machine::{psp_flow::machine::AtNotifyDeemedReversed}::resume]:
-    Source: 'psp-flow/src/machine.rs', lines 216:4-218:5
-    Visibility: public -/
-def machine.AtNotifyDeemedReversed.resume
+def
+  machine.AtNotifyDeemedReversed.Insts.Driver_frameworkMachineWaitPointPayerPayTxnTerminalNotifyTuple.resume
   (self : machine.AtNotifyDeemedReversed) (_ : Unit) :
-  Result machine.Next
+  Result (driver_framework.machine.Next machine.PayerPay (entity.Txn
+    entity.Terminal))
   := do
   let t ← entity.TxnDeemed.reverse self.txn
   let t1 ← entity.TxnReversed.terminal t
-  ok (machine.Next.Done t1)
+  ok (driver_framework.machine.Next.Done t1)
 
-/-- [psp_flow::machine::{psp_flow::machine::AtNotifyReversalStart}::event]:
-    Source: 'psp-flow/src/machine.rs', lines 224:4-226:5
+/-- [psp_flow::machine::{impl driver_framework::machine::WaitPoint<psp_flow::machine::PayerPay, psp_flow::entity::Txn<psp_flow::entity::Terminal>, psp_flow::events::Notify, ()> for psp_flow::machine::AtNotifyDeemedReversed}::event]:
+    Source: 'psp-flow/src/machine.rs', lines 211:4-213:5
     Visibility: public -/
-def machine.AtNotifyReversalStart.event
+def
+  machine.AtNotifyDeemedReversed.Insts.Driver_frameworkMachineWaitPointPayerPayTxnTerminalNotifyTuple.event
+  (self : machine.AtNotifyDeemedReversed) : Result events.Notify := do
+  ok { status := values.Status.Reversed }
+
+/-- Trait implementation: [psp_flow::machine::{impl driver_framework::machine::WaitPoint<psp_flow::machine::PayerPay, psp_flow::entity::Txn<psp_flow::entity::Terminal>, psp_flow::events::Notify, ()> for psp_flow::machine::AtNotifyDeemedReversed}]
+    Source: 'psp-flow/src/machine.rs', lines 209:0-216:6 -/
+@[reducible]
+def
+  machine.AtNotifyDeemedReversed.Insts.Driver_frameworkMachineWaitPointPayerPayTxnTerminalNotifyTuple
+  : driver_framework.machine.WaitPoint machine.AtNotifyDeemedReversed
+  machine.PayerPay (entity.Txn entity.Terminal) events.Notify Unit := {
+  EventInst := events.Notify.Insts.Driver_frameworkMachineEventTuple
+  event :=
+    machine.AtNotifyDeemedReversed.Insts.Driver_frameworkMachineWaitPointPayerPayTxnTerminalNotifyTuple.event
+  resume :=
+    machine.AtNotifyDeemedReversed.Insts.Driver_frameworkMachineWaitPointPayerPayTxnTerminalNotifyTuple.resume
+}
+
+/-- [psp_flow::machine::{impl driver_framework::machine::WaitPoint<psp_flow::machine::PayerPay, psp_flow::entity::Txn<psp_flow::entity::Terminal>, psp_flow::events::Notify, ()> for psp_flow::machine::AtNotifyReversalStart}::resume]:
+    Source: 'psp-flow/src/machine.rs', lines 225:4-227:5
+    Visibility: public -/
+def
+  machine.AtNotifyReversalStart.Insts.Driver_frameworkMachineWaitPointPayerPayTxnTerminalNotifyTuple.resume
+  (self : machine.AtNotifyReversalStart) (_ : Unit) :
+  Result (driver_framework.machine.Next machine.PayerPay (entity.Txn
+    entity.Terminal))
+  := do
+  ok (driver_framework.machine.Next.Wait
+    (machine.PayerPay.AtAwaitForcedReversal { txn := self.txn }))
+
+/-- [psp_flow::machine::{impl driver_framework::machine::WaitPoint<psp_flow::machine::PayerPay, psp_flow::entity::Txn<psp_flow::entity::Terminal>, psp_flow::events::Notify, ()> for psp_flow::machine::AtNotifyReversalStart}::event]:
+    Source: 'psp-flow/src/machine.rs', lines 222:4-224:5
+    Visibility: public -/
+def
+  machine.AtNotifyReversalStart.Insts.Driver_frameworkMachineWaitPointPayerPayTxnTerminalNotifyTuple.event
   (self : machine.AtNotifyReversalStart) : Result events.Notify := do
   ok { status := values.Status.ReversalInProgress }
 
-/-- [psp_flow::machine::{psp_flow::machine::AtNotifyReversalStart}::resume]:
-    Source: 'psp-flow/src/machine.rs', lines 227:4-229:5
+/-- Trait implementation: [psp_flow::machine::{impl driver_framework::machine::WaitPoint<psp_flow::machine::PayerPay, psp_flow::entity::Txn<psp_flow::entity::Terminal>, psp_flow::events::Notify, ()> for psp_flow::machine::AtNotifyReversalStart}]
+    Source: 'psp-flow/src/machine.rs', lines 220:0-227:6 -/
+@[reducible]
+def
+  machine.AtNotifyReversalStart.Insts.Driver_frameworkMachineWaitPointPayerPayTxnTerminalNotifyTuple
+  : driver_framework.machine.WaitPoint machine.AtNotifyReversalStart
+  machine.PayerPay (entity.Txn entity.Terminal) events.Notify Unit := {
+  EventInst := events.Notify.Insts.Driver_frameworkMachineEventTuple
+  event :=
+    machine.AtNotifyReversalStart.Insts.Driver_frameworkMachineWaitPointPayerPayTxnTerminalNotifyTuple.event
+  resume :=
+    machine.AtNotifyReversalStart.Insts.Driver_frameworkMachineWaitPointPayerPayTxnTerminalNotifyTuple.resume
+}
+
+/-- [psp_flow::machine::{impl driver_framework::machine::WaitPoint<psp_flow::machine::PayerPay, psp_flow::entity::Txn<psp_flow::entity::Terminal>, psp_flow::events::AwaitForcedReversal, ()> for psp_flow::machine::AtAwaitForcedReversal}::resume]:
+    Source: 'psp-flow/src/machine.rs', lines 234:4-236:5
     Visibility: public -/
-def machine.AtNotifyReversalStart.resume
-  (self : machine.AtNotifyReversalStart) (_ : Unit) : Result machine.Next := do
-  ok (machine.Next.Wait (machine.PayerPay.AtAwaitForcedReversal
+def
+  machine.AtAwaitForcedReversal.Insts.Driver_frameworkMachineWaitPointPayerPayTxnTerminalAwaitForcedReversalTuple.resume
+  (self : machine.AtAwaitForcedReversal) (_ : Unit) :
+  Result (driver_framework.machine.Next machine.PayerPay (entity.Txn
+    entity.Terminal))
+  := do
+  ok (driver_framework.machine.Next.Wait (machine.PayerPay.AtNotifyReversed
     { txn := self.txn }))
 
-/-- [psp_flow::machine::{psp_flow::machine::AtAwaitForcedReversal}::event]:
-    Source: 'psp-flow/src/machine.rs', lines 233:4-235:5
+/-- [psp_flow::machine::{impl driver_framework::machine::WaitPoint<psp_flow::machine::PayerPay, psp_flow::entity::Txn<psp_flow::entity::Terminal>, psp_flow::events::AwaitForcedReversal, ()> for psp_flow::machine::AtAwaitForcedReversal}::event]:
+    Source: 'psp-flow/src/machine.rs', lines 231:4-233:5
     Visibility: public -/
-def machine.AtAwaitForcedReversal.event
+def
+  machine.AtAwaitForcedReversal.Insts.Driver_frameworkMachineWaitPointPayerPayTxnTerminalAwaitForcedReversalTuple.event
   (self : machine.AtAwaitForcedReversal) :
   Result events.AwaitForcedReversal
   := do
   ok { deadline_days := machine.FORCED_REVERSAL_DEADLINE_DAYS }
 
-/-- [psp_flow::machine::{psp_flow::machine::AtAwaitForcedReversal}::resume]:
-    Source: 'psp-flow/src/machine.rs', lines 236:4-238:5
-    Visibility: public -/
-def machine.AtAwaitForcedReversal.resume
-  (self : machine.AtAwaitForcedReversal) (_ : Unit) : Result machine.Next := do
-  ok (machine.Next.Wait (machine.PayerPay.AtNotifyReversed
-    { txn := self.txn }))
+/-- Trait implementation: [psp_flow::machine::{impl driver_framework::machine::WaitPoint<psp_flow::machine::PayerPay, psp_flow::entity::Txn<psp_flow::entity::Terminal>, psp_flow::events::AwaitForcedReversal, ()> for psp_flow::machine::AtAwaitForcedReversal}]
+    Source: 'psp-flow/src/machine.rs', lines 229:0-236:6 -/
+@[reducible]
+def
+  machine.AtAwaitForcedReversal.Insts.Driver_frameworkMachineWaitPointPayerPayTxnTerminalAwaitForcedReversalTuple
+  : driver_framework.machine.WaitPoint machine.AtAwaitForcedReversal
+  machine.PayerPay (entity.Txn entity.Terminal) events.AwaitForcedReversal Unit
+  := {
+  EventInst :=
+    events.AwaitForcedReversal.Insts.Driver_frameworkMachineEventTuple
+  event :=
+    machine.AtAwaitForcedReversal.Insts.Driver_frameworkMachineWaitPointPayerPayTxnTerminalAwaitForcedReversalTuple.event
+  resume :=
+    machine.AtAwaitForcedReversal.Insts.Driver_frameworkMachineWaitPointPayerPayTxnTerminalAwaitForcedReversalTuple.resume
+}
 
-/-- [psp_flow::machine::{psp_flow::machine::AtNotifyReversed}::event]:
-    Source: 'psp-flow/src/machine.rs', lines 242:4-244:5
+/-- [psp_flow::machine::{impl driver_framework::machine::WaitPoint<psp_flow::machine::PayerPay, psp_flow::entity::Txn<psp_flow::entity::Terminal>, psp_flow::events::Notify, ()> for psp_flow::machine::AtNotifyReversed}::resume]:
+    Source: 'psp-flow/src/machine.rs', lines 243:4-245:5
     Visibility: public -/
-def machine.AtNotifyReversed.event
+def
+  machine.AtNotifyReversed.Insts.Driver_frameworkMachineWaitPointPayerPayTxnTerminalNotifyTuple.resume
+  (self : machine.AtNotifyReversed) (_ : Unit) :
+  Result (driver_framework.machine.Next machine.PayerPay (entity.Txn
+    entity.Terminal))
+  := do
+  let t ← entity.TxnReversalPending.reversed self.txn
+  let t1 ← entity.TxnReversed.terminal t
+  ok (driver_framework.machine.Next.Done t1)
+
+/-- [psp_flow::machine::{impl driver_framework::machine::WaitPoint<psp_flow::machine::PayerPay, psp_flow::entity::Txn<psp_flow::entity::Terminal>, psp_flow::events::Notify, ()> for psp_flow::machine::AtNotifyReversed}::event]:
+    Source: 'psp-flow/src/machine.rs', lines 240:4-242:5
+    Visibility: public -/
+def
+  machine.AtNotifyReversed.Insts.Driver_frameworkMachineWaitPointPayerPayTxnTerminalNotifyTuple.event
   (self : machine.AtNotifyReversed) : Result events.Notify := do
   ok { status := values.Status.Reversed }
 
-/-- [psp_flow::machine::{psp_flow::machine::AtNotifyReversed}::resume]:
-    Source: 'psp-flow/src/machine.rs', lines 245:4-247:5
-    Visibility: public -/
-def machine.AtNotifyReversed.resume
-  (self : machine.AtNotifyReversed) (_ : Unit) : Result machine.Next := do
-  let t ← entity.TxnReversalPending.reversed self.txn
-  let t1 ← entity.TxnReversed.terminal t
-  ok (machine.Next.Done t1)
+/-- Trait implementation: [psp_flow::machine::{impl driver_framework::machine::WaitPoint<psp_flow::machine::PayerPay, psp_flow::entity::Txn<psp_flow::entity::Terminal>, psp_flow::events::Notify, ()> for psp_flow::machine::AtNotifyReversed}]
+    Source: 'psp-flow/src/machine.rs', lines 238:0-245:6 -/
+@[reducible]
+def
+  machine.AtNotifyReversed.Insts.Driver_frameworkMachineWaitPointPayerPayTxnTerminalNotifyTuple
+  : driver_framework.machine.WaitPoint machine.AtNotifyReversed
+  machine.PayerPay (entity.Txn entity.Terminal) events.Notify Unit := {
+  EventInst := events.Notify.Insts.Driver_frameworkMachineEventTuple
+  event :=
+    machine.AtNotifyReversed.Insts.Driver_frameworkMachineWaitPointPayerPayTxnTerminalNotifyTuple.event
+  resume :=
+    machine.AtNotifyReversed.Insts.Driver_frameworkMachineWaitPointPayerPayTxnTerminalNotifyTuple.resume
+}
 
 /-- [psp_flow::machine::{impl core::clone::Clone for psp_flow::machine::Mismatch}::clone]:
-    Source: 'psp-flow/src/machine.rs', lines 253:9-253:14
+    Source: 'psp-flow/src/machine.rs', lines 250:9-250:14
     Visibility: public -/
 def machine.Mismatch.Insts.CoreCloneClone.clone
   (self : machine.Mismatch) : Result machine.Mismatch := do
   ok self
 
 /-- Trait implementation: [psp_flow::machine::{impl core::clone::Clone for psp_flow::machine::Mismatch}]
-    Source: 'psp-flow/src/machine.rs', lines 253:9-253:14 -/
+    Source: 'psp-flow/src/machine.rs', lines 250:9-250:14 -/
 @[reducible]
 def machine.Mismatch.Insts.CoreCloneClone : core.clone.Clone machine.Mismatch
   := {
@@ -1591,7 +1853,7 @@ def machine.Mismatch.Insts.CoreCloneClone : core.clone.Clone machine.Mismatch
 }
 
 /-- Trait implementation: [psp_flow::machine::{impl core::marker::Copy for psp_flow::machine::Mismatch}]
-    Source: 'psp-flow/src/machine.rs', lines 253:16-253:20 -/
+    Source: 'psp-flow/src/machine.rs', lines 250:16-250:20 -/
 @[reducible]
 def machine.Mismatch.Insts.CoreMarkerCopy : core.marker.Copy machine.Mismatch
   := {
@@ -1599,68 +1861,101 @@ def machine.Mismatch.Insts.CoreMarkerCopy : core.marker.Copy machine.Mismatch
 }
 
 /-- [psp_flow::machine::event]:
-    Source: 'psp-flow/src/machine.rs', lines 260:0-278:1
+    Source: 'psp-flow/src/machine.rs', lines 257:0-275:1
     Visibility: public -/
 def machine.event (s : machine.PayerPay) : Result events.AnyEvent := do
   match s with
   | machine.PayerPay.AtGetPaymentIntent w =>
-    let gpi ← machine.AtGetPaymentIntent.event w
+    let gpi ←
+      machine.AtGetPaymentIntent.Insts.Driver_frameworkMachineWaitPointPayerPayTxnTerminalGetPaymentIntentRawIntent.event
+        w
     ok (events.AnyEvent.GetPaymentIntent gpi)
   | machine.PayerPay.AtShowError w =>
-    let se ← machine.AtShowError.event w
+    let se ←
+      machine.AtShowError.Insts.Driver_frameworkMachineWaitPointPayerPayTxnTerminalShowErrorTuple.event
+        w
     ok (events.AnyEvent.ShowError se)
   | machine.PayerPay.AtCollectMpin w =>
-    let cm ← machine.AtCollectMpin.event w
+    let cm ←
+      machine.AtCollectMpin.Insts.Driver_frameworkMachineWaitPointPayerPayTxnTerminalCollectMpinMpin.event
+        w
     ok (events.AnyEvent.CollectMpin cm)
   | machine.PayerPay.AtReqPay w =>
-    let rp ← machine.AtReqPay.event w
+    let rp ←
+      machine.AtReqPay.Insts.Driver_frameworkMachineWaitPointPayerPayTxnTerminalReqPayReqPayResponse.event
+        w
     ok (events.AnyEvent.ReqPay rp)
   | machine.PayerPay.AtNotifyRejected w =>
-    let n ← machine.AtNotifyRejected.event w
+    let n ←
+      machine.AtNotifyRejected.Insts.Driver_frameworkMachineWaitPointPayerPayTxnTerminalNotifyTuple.event
+        w
     ok (events.AnyEvent.Notify n)
   | machine.PayerPay.AtAwaitCallback w =>
-    let ac ← machine.AtAwaitCallback.event w
+    let ac ←
+      machine.AtAwaitCallback.Insts.Driver_frameworkMachineWaitPointPayerPayTxnTerminalAwaitCallbackCallback.event
+        w
     ok (events.AnyEvent.AwaitCallback ac)
   | machine.PayerPay.AtNotifySuccess w =>
-    let n ← machine.AtNotifySuccess.event w
+    let n ←
+      machine.AtNotifySuccess.Insts.Driver_frameworkMachineWaitPointPayerPayTxnTerminalNotifyTuple.event
+        w
     ok (events.AnyEvent.Notify n)
   | machine.PayerPay.AtNotifyFailed w =>
-    let n ← machine.AtNotifyFailed.event w
+    let n ←
+      machine.AtNotifyFailed.Insts.Driver_frameworkMachineWaitPointPayerPayTxnTerminalNotifyTuple.event
+        w
     ok (events.AnyEvent.Notify n)
   | machine.PayerPay.AtNotifyProcessing w =>
-    let n ← machine.AtNotifyProcessing.event w
+    let n ←
+      machine.AtNotifyProcessing.Insts.Driver_frameworkMachineWaitPointPayerPayTxnTerminalNotifyTuple.event
+        w
     ok (events.AnyEvent.Notify n)
   | machine.PayerPay.AtAwaitDeemed w =>
-    let adr ← machine.AtAwaitDeemed.event w
+    let adr ←
+      machine.AtAwaitDeemed.Insts.Driver_frameworkMachineWaitPointPayerPayTxnTerminalAwaitDeemedResolutionResolution.event
+        w
     ok (events.AnyEvent.AwaitDeemedResolution adr)
   | machine.PayerPay.AtNotifyConfirmed w =>
-    let n ← machine.AtNotifyConfirmed.event w
+    let n ←
+      machine.AtNotifyConfirmed.Insts.Driver_frameworkMachineWaitPointPayerPayTxnTerminalNotifyTuple.event
+        w
     ok (events.AnyEvent.Notify n)
   | machine.PayerPay.AtNotifyDeemedReversed w =>
-    let n ← machine.AtNotifyDeemedReversed.event w
+    let n ←
+      machine.AtNotifyDeemedReversed.Insts.Driver_frameworkMachineWaitPointPayerPayTxnTerminalNotifyTuple.event
+        w
     ok (events.AnyEvent.Notify n)
   | machine.PayerPay.AtNotifyReversalStart w =>
-    let n ← machine.AtNotifyReversalStart.event w
+    let n ←
+      machine.AtNotifyReversalStart.Insts.Driver_frameworkMachineWaitPointPayerPayTxnTerminalNotifyTuple.event
+        w
     ok (events.AnyEvent.Notify n)
   | machine.PayerPay.AtAwaitForcedReversal w =>
-    let afr ← machine.AtAwaitForcedReversal.event w
+    let afr ←
+      machine.AtAwaitForcedReversal.Insts.Driver_frameworkMachineWaitPointPayerPayTxnTerminalAwaitForcedReversalTuple.event
+        w
     ok (events.AnyEvent.AwaitForcedReversal afr)
   | machine.PayerPay.AtNotifyReversed w =>
-    let n ← machine.AtNotifyReversed.event w
+    let n ←
+      machine.AtNotifyReversed.Insts.Driver_frameworkMachineWaitPointPayerPayTxnTerminalNotifyTuple.event
+        w
     ok (events.AnyEvent.Notify n)
 
 /-- [psp_flow::machine::deliver]:
-    Source: 'psp-flow/src/machine.rs', lines 282:0-301:1
+    Source: 'psp-flow/src/machine.rs', lines 279:0-298:1
     Visibility: public -/
 def machine.deliver
   (s : machine.PayerPay) (r : events.AnyResponse) :
-  Result (core.result.Result machine.Next machine.Mismatch)
+  Result (core.result.Result (driver_framework.machine.Next machine.PayerPay
+    (entity.Txn entity.Terminal)) machine.Mismatch)
   := do
   match s with
   | machine.PayerPay.AtGetPaymentIntent w =>
     match r with
     | events.AnyResponse.Intent raw =>
-      let n ← machine.AtGetPaymentIntent.resume w raw
+      let n ←
+        machine.AtGetPaymentIntent.Insts.Driver_frameworkMachineWaitPointPayerPayTxnTerminalGetPaymentIntentRawIntent.resume
+          w raw
       ok (core.result.Result.Ok n)
     | events.AnyResponse.Mpin _ =>
       ok (core.result.Result.Err machine.Mismatch.ResponseMismatch)
@@ -1679,7 +1974,9 @@ def machine.deliver
     | events.AnyResponse.Mpin _ =>
       ok (core.result.Result.Err machine.Mismatch.ResponseMismatch)
     | events.AnyResponse.Unit =>
-      let n ← machine.AtShowError.resume w ()
+      let n ←
+        machine.AtShowError.Insts.Driver_frameworkMachineWaitPointPayerPayTxnTerminalShowErrorTuple.resume
+          w ()
       ok (core.result.Result.Ok n)
     | events.AnyResponse.ReqPay _ =>
       ok (core.result.Result.Err machine.Mismatch.ResponseMismatch)
@@ -1692,7 +1989,9 @@ def machine.deliver
     | events.AnyResponse.Intent _ =>
       ok (core.result.Result.Err machine.Mismatch.ResponseMismatch)
     | events.AnyResponse.Mpin mpin =>
-      let n ← machine.AtCollectMpin.resume w mpin
+      let n ←
+        machine.AtCollectMpin.Insts.Driver_frameworkMachineWaitPointPayerPayTxnTerminalCollectMpinMpin.resume
+          w mpin
       ok (core.result.Result.Ok n)
     | events.AnyResponse.Unit =>
       ok (core.result.Result.Err machine.Mismatch.ResponseMismatch)
@@ -1711,7 +2010,9 @@ def machine.deliver
     | events.AnyResponse.Unit =>
       ok (core.result.Result.Err machine.Mismatch.ResponseMismatch)
     | events.AnyResponse.ReqPay resp =>
-      let n ← machine.AtReqPay.resume w resp
+      let n ←
+        machine.AtReqPay.Insts.Driver_frameworkMachineWaitPointPayerPayTxnTerminalReqPayReqPayResponse.resume
+          w resp
       ok (core.result.Result.Ok n)
     | events.AnyResponse.Callback _ =>
       ok (core.result.Result.Err machine.Mismatch.ResponseMismatch)
@@ -1724,7 +2025,9 @@ def machine.deliver
     | events.AnyResponse.Mpin _ =>
       ok (core.result.Result.Err machine.Mismatch.ResponseMismatch)
     | events.AnyResponse.Unit =>
-      let n ← machine.AtNotifyRejected.resume w ()
+      let n ←
+        machine.AtNotifyRejected.Insts.Driver_frameworkMachineWaitPointPayerPayTxnTerminalNotifyTuple.resume
+          w ()
       ok (core.result.Result.Ok n)
     | events.AnyResponse.ReqPay _ =>
       ok (core.result.Result.Err machine.Mismatch.ResponseMismatch)
@@ -1743,7 +2046,9 @@ def machine.deliver
     | events.AnyResponse.ReqPay _ =>
       ok (core.result.Result.Err machine.Mismatch.ResponseMismatch)
     | events.AnyResponse.Callback cb =>
-      let n ← machine.AtAwaitCallback.resume w cb
+      let n ←
+        machine.AtAwaitCallback.Insts.Driver_frameworkMachineWaitPointPayerPayTxnTerminalAwaitCallbackCallback.resume
+          w cb
       ok (core.result.Result.Ok n)
     | events.AnyResponse.Resolution _ =>
       ok (core.result.Result.Err machine.Mismatch.ResponseMismatch)
@@ -1754,7 +2059,9 @@ def machine.deliver
     | events.AnyResponse.Mpin _ =>
       ok (core.result.Result.Err machine.Mismatch.ResponseMismatch)
     | events.AnyResponse.Unit =>
-      let n ← machine.AtNotifySuccess.resume w ()
+      let n ←
+        machine.AtNotifySuccess.Insts.Driver_frameworkMachineWaitPointPayerPayTxnTerminalNotifyTuple.resume
+          w ()
       ok (core.result.Result.Ok n)
     | events.AnyResponse.ReqPay _ =>
       ok (core.result.Result.Err machine.Mismatch.ResponseMismatch)
@@ -1769,7 +2076,9 @@ def machine.deliver
     | events.AnyResponse.Mpin _ =>
       ok (core.result.Result.Err machine.Mismatch.ResponseMismatch)
     | events.AnyResponse.Unit =>
-      let n ← machine.AtNotifyFailed.resume w ()
+      let n ←
+        machine.AtNotifyFailed.Insts.Driver_frameworkMachineWaitPointPayerPayTxnTerminalNotifyTuple.resume
+          w ()
       ok (core.result.Result.Ok n)
     | events.AnyResponse.ReqPay _ =>
       ok (core.result.Result.Err machine.Mismatch.ResponseMismatch)
@@ -1784,7 +2093,9 @@ def machine.deliver
     | events.AnyResponse.Mpin _ =>
       ok (core.result.Result.Err machine.Mismatch.ResponseMismatch)
     | events.AnyResponse.Unit =>
-      let n ← machine.AtNotifyProcessing.resume w ()
+      let n ←
+        machine.AtNotifyProcessing.Insts.Driver_frameworkMachineWaitPointPayerPayTxnTerminalNotifyTuple.resume
+          w ()
       ok (core.result.Result.Ok n)
     | events.AnyResponse.ReqPay _ =>
       ok (core.result.Result.Err machine.Mismatch.ResponseMismatch)
@@ -1805,7 +2116,9 @@ def machine.deliver
     | events.AnyResponse.Callback _ =>
       ok (core.result.Result.Err machine.Mismatch.ResponseMismatch)
     | events.AnyResponse.Resolution res =>
-      let n ← machine.AtAwaitDeemed.resume w res
+      let n ←
+        machine.AtAwaitDeemed.Insts.Driver_frameworkMachineWaitPointPayerPayTxnTerminalAwaitDeemedResolutionResolution.resume
+          w res
       ok (core.result.Result.Ok n)
   | machine.PayerPay.AtNotifyConfirmed w =>
     match r with
@@ -1814,7 +2127,9 @@ def machine.deliver
     | events.AnyResponse.Mpin _ =>
       ok (core.result.Result.Err machine.Mismatch.ResponseMismatch)
     | events.AnyResponse.Unit =>
-      let n ← machine.AtNotifyConfirmed.resume w ()
+      let n ←
+        machine.AtNotifyConfirmed.Insts.Driver_frameworkMachineWaitPointPayerPayTxnTerminalNotifyTuple.resume
+          w ()
       ok (core.result.Result.Ok n)
     | events.AnyResponse.ReqPay _ =>
       ok (core.result.Result.Err machine.Mismatch.ResponseMismatch)
@@ -1829,7 +2144,9 @@ def machine.deliver
     | events.AnyResponse.Mpin _ =>
       ok (core.result.Result.Err machine.Mismatch.ResponseMismatch)
     | events.AnyResponse.Unit =>
-      let n ← machine.AtNotifyDeemedReversed.resume w ()
+      let n ←
+        machine.AtNotifyDeemedReversed.Insts.Driver_frameworkMachineWaitPointPayerPayTxnTerminalNotifyTuple.resume
+          w ()
       ok (core.result.Result.Ok n)
     | events.AnyResponse.ReqPay _ =>
       ok (core.result.Result.Err machine.Mismatch.ResponseMismatch)
@@ -1844,7 +2161,9 @@ def machine.deliver
     | events.AnyResponse.Mpin _ =>
       ok (core.result.Result.Err machine.Mismatch.ResponseMismatch)
     | events.AnyResponse.Unit =>
-      let n ← machine.AtNotifyReversalStart.resume w ()
+      let n ←
+        machine.AtNotifyReversalStart.Insts.Driver_frameworkMachineWaitPointPayerPayTxnTerminalNotifyTuple.resume
+          w ()
       ok (core.result.Result.Ok n)
     | events.AnyResponse.ReqPay _ =>
       ok (core.result.Result.Err machine.Mismatch.ResponseMismatch)
@@ -1859,7 +2178,9 @@ def machine.deliver
     | events.AnyResponse.Mpin _ =>
       ok (core.result.Result.Err machine.Mismatch.ResponseMismatch)
     | events.AnyResponse.Unit =>
-      let n ← machine.AtAwaitForcedReversal.resume w ()
+      let n ←
+        machine.AtAwaitForcedReversal.Insts.Driver_frameworkMachineWaitPointPayerPayTxnTerminalAwaitForcedReversalTuple.resume
+          w ()
       ok (core.result.Result.Ok n)
     | events.AnyResponse.ReqPay _ =>
       ok (core.result.Result.Err machine.Mismatch.ResponseMismatch)
@@ -1874,7 +2195,9 @@ def machine.deliver
     | events.AnyResponse.Mpin _ =>
       ok (core.result.Result.Err machine.Mismatch.ResponseMismatch)
     | events.AnyResponse.Unit =>
-      let n ← machine.AtNotifyReversed.resume w ()
+      let n ←
+        machine.AtNotifyReversed.Insts.Driver_frameworkMachineWaitPointPayerPayTxnTerminalNotifyTuple.resume
+          w ()
       ok (core.result.Result.Ok n)
     | events.AnyResponse.ReqPay _ =>
       ok (core.result.Result.Err machine.Mismatch.ResponseMismatch)

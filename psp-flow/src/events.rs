@@ -9,9 +9,7 @@
 
 use crate::values::*;
 
-pub trait Event {
-    type Response;
-}
+pub use driver_framework::Event;
 
 #[derive(Clone, Copy)]
 #[cfg_attr(feature = "runtime", derive(Debug, PartialEq, Eq))]

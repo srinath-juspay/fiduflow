@@ -1,6 +1,8 @@
 //! SQLite backend. The framework tables live here; application tables come from `Persist`.
 
 use crate::{Backend, InstanceId, InstanceInfo, JournalEntry, JournalRow, Status};
+use alloc::string::String;
+use alloc::vec::Vec;
 use rusqlite::{params, Connection, OptionalExtension, Transaction};
 
 pub struct Sqlite {

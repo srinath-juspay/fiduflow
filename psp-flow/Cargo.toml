@@ -10,6 +10,7 @@ default = []
 runtime = []
 
 [dependencies]
+driver-framework = { path = "../driver-framework" }
 
 [package.metadata.charon]
 # `charon cargo` reads these; keeps the translated surface small.

@@ -19,6 +19,36 @@ set_option maxRecDepth 2048
 
 namespace psp_flow
 
+/-- Trait declaration: [driver_framework::machine::Event]
+    Source: 'driver-framework/src/machine.rs', lines 12:0-12:15
+    Name pattern: [driver_framework::machine::Event]
+    Visibility: public -/
+@[rust_trait "driver_framework::machine::Event"]
+structure driver_framework.machine.Event (Self : Type) (Self_Response : Type)
+  where
+
+/-- [driver_framework::machine::Next]
+    Source: 'driver-framework/src/machine.rs', lines 55:0-55:19
+    Name pattern: [driver_framework::machine::Next]
+    Visibility: public -/
+@[discriminant isize, rust_type "driver_framework::machine::Next"]
+inductive driver_framework.machine.Next (S : Type) (D : Type) where
+| Wait : S → driver_framework.machine.Next S D
+| Done : D → driver_framework.machine.Next S D
+
+/-- Trait declaration: [driver_framework::machine::WaitPoint]
+    Source: 'driver-framework/src/machine.rs', lines 20:0-20:25
+    Name pattern: [driver_framework::machine::WaitPoint]
+    Visibility: public -/
+@[rust_trait "driver_framework::machine::WaitPoint"
+  (parentClauses := ["EventInst"])]
+structure driver_framework.machine.WaitPoint (Self : Type) (S : Type) (D :
+  Type) (Self_Event : Type) (Self_Clause0_Response : Type) where
+  EventInst : driver_framework.machine.Event Self_Event Self_Clause0_Response
+  event : Self → Result Self_Event
+  resume : Self → Self_Clause0_Response → Result
+    (driver_framework.machine.Next S D)
+
 /-- [psp_flow::values::PayerId]
     Source: 'psp-flow/src/values.rs', lines 5:0-5:28
     Visibility: public -/
@@ -159,13 +189,8 @@ structure entity.Txn (S : Type) where
   id : values.TxnId
   data : S
 
-/-- Trait declaration: [psp_flow::events::Event]
-    Source: 'psp-flow/src/events.rs', lines 12:0-14:1
-    Visibility: public -/
-structure events.Event (Self : Type) (Self_Response : Type) where
-
 /-- [psp_flow::events::Party]
-    Source: 'psp-flow/src/events.rs', lines 18:0-18:29
+    Source: 'psp-flow/src/events.rs', lines 16:0-16:29
     Visibility: public -/
 @[discriminant isize]
 inductive events.Party where
@@ -173,7 +198,7 @@ inductive events.Party where
 | Npci : events.Party
 
 /-- [psp_flow::events::GetPaymentIntent]
-    Source: 'psp-flow/src/events.rs', lines 24:0-24:50
+    Source: 'psp-flow/src/events.rs', lines 22:0-22:50
     Visibility: public -/
 structure events.GetPaymentIntent where
   payer : values.PayerId
@@ -186,13 +211,13 @@ structure values.RawIntent where
   amount : values.Amount
 
 /-- [psp_flow::events::ShowError]
-    Source: 'psp-flow/src/events.rs', lines 29:0-29:43
+    Source: 'psp-flow/src/events.rs', lines 27:0-27:43
     Visibility: public -/
 structure events.ShowError where
   reason : values.Reason
 
 /-- [psp_flow::events::CollectMpin]
-    Source: 'psp-flow/src/events.rs', lines 34:0-34:70
+    Source: 'psp-flow/src/events.rs', lines 32:0-32:70
     Visibility: public -/
 structure events.CollectMpin where
   payer : values.PayerId
@@ -211,19 +236,19 @@ inductive values.Status where
 | ReversalInProgress : values.Status
 
 /-- [psp_flow::events::Notify]
-    Source: 'psp-flow/src/events.rs', lines 39:0-39:40
+    Source: 'psp-flow/src/events.rs', lines 37:0-37:40
     Visibility: public -/
 structure events.Notify where
   status : values.Status
 
 /-- [psp_flow::events::ReqPay]
-    Source: 'psp-flow/src/events.rs', lines 46:0-46:41
+    Source: 'psp-flow/src/events.rs', lines 44:0-44:41
     Visibility: public -/
 structure events.ReqPay where
   req : values.PayRequest
 
 /-- [psp_flow::events::ReqPayResponse]
-    Source: 'psp-flow/src/events.rs', lines 49:0-49:60
+    Source: 'psp-flow/src/events.rs', lines 47:0-47:60
     Visibility: public -/
 @[discriminant isize]
 inductive events.ReqPayResponse where
@@ -231,13 +256,13 @@ inductive events.ReqPayResponse where
 | Rejected : values.Reason → events.ReqPayResponse
 
 /-- [psp_flow::events::AwaitCallback]
-    Source: 'psp-flow/src/events.rs', lines 54:0-54:50
+    Source: 'psp-flow/src/events.rs', lines 52:0-52:50
     Visibility: public -/
 structure events.AwaitCallback where
   timeout_secs : Std.U64
 
 /-- [psp_flow::events::Callback]
-    Source: 'psp-flow/src/events.rs', lines 57:0-62:1
+    Source: 'psp-flow/src/events.rs', lines 55:0-60:1
     Visibility: public -/
 @[discriminant isize]
 inductive events.Callback where
@@ -247,13 +272,13 @@ inductive events.Callback where
 | Timeout : events.Callback
 
 /-- [psp_flow::events::AwaitDeemedResolution]
-    Source: 'psp-flow/src/events.rs', lines 67:0-67:59
+    Source: 'psp-flow/src/events.rs', lines 65:0-65:59
     Visibility: public -/
 structure events.AwaitDeemedResolution where
   deadline_days : Std.U64
 
 /-- [psp_flow::events::Resolution]
-    Source: 'psp-flow/src/events.rs', lines 70:0-74:1
+    Source: 'psp-flow/src/events.rs', lines 68:0-72:1
     Visibility: public -/
 @[discriminant isize]
 inductive events.Resolution where
@@ -262,13 +287,13 @@ inductive events.Resolution where
 | DeadlineExpired : events.Resolution
 
 /-- [psp_flow::events::AwaitForcedReversal]
-    Source: 'psp-flow/src/events.rs', lines 79:0-79:57
+    Source: 'psp-flow/src/events.rs', lines 77:0-77:57
     Visibility: public -/
 structure events.AwaitForcedReversal where
   deadline_days : Std.U64
 
 /-- [psp_flow::events::AnyEvent]
-    Source: 'psp-flow/src/events.rs', lines 87:0-96:1
+    Source: 'psp-flow/src/events.rs', lines 85:0-94:1
     Visibility: public -/
 @[discriminant isize]
 inductive events.AnyEvent where
@@ -282,7 +307,7 @@ inductive events.AnyEvent where
 | AwaitForcedReversal : events.AwaitForcedReversal → events.AnyEvent
 
 /-- [psp_flow::events::AnyResponse]
-    Source: 'psp-flow/src/events.rs', lines 102:0-109:1
+    Source: 'psp-flow/src/events.rs', lines 100:0-107:1
     Visibility: public -/
 @[discriminant isize]
 inductive events.AnyResponse where
@@ -413,16 +438,8 @@ inductive machine.PayerPay where
 | AtAwaitForcedReversal : machine.AtAwaitForcedReversal → machine.PayerPay
 | AtNotifyReversed : machine.AtNotifyReversed → machine.PayerPay
 
-/-- [psp_flow::machine::Next]
-    Source: 'psp-flow/src/machine.rs', lines 68:0-71:1
-    Visibility: public -/
-@[discriminant isize]
-inductive machine.Next where
-| Wait : machine.PayerPay → machine.Next
-| Done : entity.Txn entity.Terminal → machine.Next
-
 /-- [psp_flow::machine::Mismatch]
-    Source: 'psp-flow/src/machine.rs', lines 255:0-257:1
+    Source: 'psp-flow/src/machine.rs', lines 252:0-254:1
     Visibility: public -/
 @[discriminant isize]
 inductive machine.Mismatch where

@@ -63,12 +63,9 @@ pub enum PayerPay {
     AtNotifyReversed(AtNotifyReversed),
 }
 
-#[derive(Clone, Copy)]
-#[cfg_attr(feature = "runtime", derive(Debug, PartialEq, Eq))]
-pub enum Next {
-    Wait(PayerPay),
-    Done(Txn<Terminal>),
-}
+/// The framework's `Next`, instantiated for this flow.
+pub type Next = driver_framework::Next<PayerPay, Txn<Terminal>>;
+pub use driver_framework::WaitPoint;
 
 /// Entry: `PayerPSP_Pay(payer_id)`.
 pub fn start(id: TxnId, payer: PayerId) -> PayerPay {
@@ -77,72 +74,73 @@ pub fn start(id: TxnId, payer: PayerId) -> PayerPay {
 
 // ---- collect_intent ------------------------------------------------------------------
 
-impl AtGetPaymentIntent {
-    pub fn event(&self) -> GetPaymentIntent {
+impl WaitPoint<PayerPay, Txn<Terminal>> for AtGetPaymentIntent {
+    type Event = GetPaymentIntent;
+    fn event(&self) -> GetPaymentIntent {
         GetPaymentIntent { payer: self.txn.data.payer }
     }
-    pub fn resume(self, raw: <GetPaymentIntent as Event>::Response) -> Next {
+    fn resume(self, raw: <GetPaymentIntent as Event>::Response) -> Next {
         match validate_pay_intent(self.txn.data.payer, raw) {
             Err(reason) => Next::Wait(PayerPay::AtShowError(AtShowError { txn: self.txn, reason })),
             Ok(intent) => Next::Wait(PayerPay::AtCollectMpin(AtCollectMpin { txn: self.txn, intent })),
         }
-    }
-}
+    }}
 
-impl AtShowError {
-    pub fn event(&self) -> ShowError {
+impl WaitPoint<PayerPay, Txn<Terminal>> for AtShowError {
+    type Event = ShowError;
+    fn event(&self) -> ShowError {
         ShowError { reason: self.reason }
     }
-    pub fn resume(self, _r: <ShowError as Event>::Response) -> Next {
+    fn resume(self, _r: <ShowError as Event>::Response) -> Next {
         Next::Done(self.txn.abandon().terminal())
-    }
-}
+    }}
 
 // ---- authenticate_payer, then Tau(build_req_pay) --------------------------------------
 
-impl AtCollectMpin {
-    pub fn event(&self) -> CollectMpin {
+impl WaitPoint<PayerPay, Txn<Terminal>> for AtCollectMpin {
+    type Event = CollectMpin;
+    fn event(&self) -> CollectMpin {
         CollectMpin { payer: self.txn.data.payer, intent: self.intent }
     }
-    pub fn resume(self, mpin: <CollectMpin as Event>::Response) -> Next {
+    fn resume(self, mpin: <CollectMpin as Event>::Response) -> Next {
         let txn = self.txn.authenticate(self.intent, mpin);
         let req = txn.build_req_pay();
         Next::Wait(PayerPay::AtReqPay(AtReqPay { txn, req }))
-    }
-}
+    }}
 
 // ---- submit_to_npci -------------------------------------------------------------------
 
-impl AtReqPay {
-    pub fn event(&self) -> ReqPay {
+impl WaitPoint<PayerPay, Txn<Terminal>> for AtReqPay {
+    type Event = ReqPay;
+    fn event(&self) -> ReqPay {
         ReqPay { req: self.req }
     }
-    pub fn resume(self, resp: <ReqPay as Event>::Response) -> Next {
+    fn resume(self, resp: <ReqPay as Event>::Response) -> Next {
         match resp {
             ReqPayResponse::Rejected { reason } => {
                 Next::Wait(PayerPay::AtNotifyRejected(AtNotifyRejected { txn: self.txn, req: self.req, reason }))
             }
             ReqPayResponse::Ack => Next::Wait(PayerPay::AtAwaitCallback(AtAwaitCallback { txn: self.txn.submit(self.req) })),
         }
-    }
-}
+    }}
 
-impl AtNotifyRejected {
-    pub fn event(&self) -> Notify {
+impl WaitPoint<PayerPay, Txn<Terminal>> for AtNotifyRejected {
+    type Event = Notify;
+    fn event(&self) -> Notify {
         Notify { status: Status::Failed(self.reason) }
     }
-    pub fn resume(self, _r: <Notify as Event>::Response) -> Next {
+    fn resume(self, _r: <Notify as Event>::Response) -> Next {
         Next::Done(self.txn.reject(self.req, self.reason).terminal())
-    }
-}
+    }}
 
 // ---- npci_callback --------------------------------------------------------------------
 
-impl AtAwaitCallback {
-    pub fn event(&self) -> AwaitCallback {
+impl WaitPoint<PayerPay, Txn<Terminal>> for AtAwaitCallback {
+    type Event = AwaitCallback;
+    fn event(&self) -> AwaitCallback {
         AwaitCallback { timeout_secs: CALLBACK_TIMEOUT_SECS }
     }
-    pub fn resume(self, cb: <AwaitCallback as Event>::Response) -> Next {
+    fn resume(self, cb: <AwaitCallback as Event>::Response) -> Next {
         match cb {
             Callback::Success { debit_ref, credit_ref } => {
                 Next::Wait(PayerPay::AtNotifySuccess(AtNotifySuccess { txn: self.txn, debit_ref, credit_ref }))
@@ -151,43 +149,43 @@ impl AtAwaitCallback {
             Callback::Deemed => Next::Wait(PayerPay::AtNotifyProcessing(AtNotifyProcessing { txn: self.txn })),
             Callback::Timeout => Next::Wait(PayerPay::AtNotifyProcessing(AtNotifyProcessing { txn: self.txn })),
         }
-    }
-}
+    }}
 
-impl AtNotifySuccess {
-    pub fn event(&self) -> Notify {
+impl WaitPoint<PayerPay, Txn<Terminal>> for AtNotifySuccess {
+    type Event = Notify;
+    fn event(&self) -> Notify {
         Notify { status: Status::Successful }
     }
-    pub fn resume(self, _r: <Notify as Event>::Response) -> Next {
+    fn resume(self, _r: <Notify as Event>::Response) -> Next {
         Next::Done(self.txn.succeed(self.debit_ref, self.credit_ref).terminal())
-    }
-}
+    }}
 
-impl AtNotifyFailed {
-    pub fn event(&self) -> Notify {
+impl WaitPoint<PayerPay, Txn<Terminal>> for AtNotifyFailed {
+    type Event = Notify;
+    fn event(&self) -> Notify {
         Notify { status: Status::Failed(self.reason) }
     }
-    pub fn resume(self, _r: <Notify as Event>::Response) -> Next {
+    fn resume(self, _r: <Notify as Event>::Response) -> Next {
         Next::Done(self.txn.fail(self.reason).terminal())
-    }
-}
+    }}
 
-impl AtNotifyProcessing {
-    pub fn event(&self) -> Notify {
+impl WaitPoint<PayerPay, Txn<Terminal>> for AtNotifyProcessing {
+    type Event = Notify;
+    fn event(&self) -> Notify {
         Notify { status: Status::Processing }
     }
-    pub fn resume(self, _r: <Notify as Event>::Response) -> Next {
+    fn resume(self, _r: <Notify as Event>::Response) -> Next {
         Next::Wait(PayerPay::AtAwaitDeemed(AtAwaitDeemed { txn: self.txn.deem() }))
-    }
-}
+    }}
 
 // ---- deemed_resolution ----------------------------------------------------------------
 
-impl AtAwaitDeemed {
-    pub fn event(&self) -> AwaitDeemedResolution {
+impl WaitPoint<PayerPay, Txn<Terminal>> for AtAwaitDeemed {
+    type Event = AwaitDeemedResolution;
+    fn event(&self) -> AwaitDeemedResolution {
         AwaitDeemedResolution { deadline_days: DEEMED_DEADLINE_DAYS }
     }
-    pub fn resume(self, res: <AwaitDeemedResolution as Event>::Response) -> Next {
+    fn resume(self, res: <AwaitDeemedResolution as Event>::Response) -> Next {
         match res {
             Resolution::DeemedSuccess { credit_ref } => {
                 Next::Wait(PayerPay::AtNotifyConfirmed(AtNotifyConfirmed { txn: self.txn, credit_ref }))
@@ -197,55 +195,54 @@ impl AtAwaitDeemed {
                 Next::Wait(PayerPay::AtNotifyReversalStart(AtNotifyReversalStart { txn: self.txn.escalate_reversal() }))
             }
         }
-    }
-}
+    }}
 
-impl AtNotifyConfirmed {
-    pub fn event(&self) -> Notify {
+impl WaitPoint<PayerPay, Txn<Terminal>> for AtNotifyConfirmed {
+    type Event = Notify;
+    fn event(&self) -> Notify {
         Notify { status: Status::Confirmed }
     }
-    pub fn resume(self, _r: <Notify as Event>::Response) -> Next {
+    fn resume(self, _r: <Notify as Event>::Response) -> Next {
         Next::Done(self.txn.confirm(self.credit_ref).terminal())
-    }
-}
+    }}
 
-impl AtNotifyDeemedReversed {
-    pub fn event(&self) -> Notify {
+impl WaitPoint<PayerPay, Txn<Terminal>> for AtNotifyDeemedReversed {
+    type Event = Notify;
+    fn event(&self) -> Notify {
         Notify { status: Status::Reversed }
     }
-    pub fn resume(self, _r: <Notify as Event>::Response) -> Next {
+    fn resume(self, _r: <Notify as Event>::Response) -> Next {
         Next::Done(self.txn.reverse().terminal())
-    }
-}
+    }}
 
 // ---- forced_reversal ------------------------------------------------------------------
 
-impl AtNotifyReversalStart {
-    pub fn event(&self) -> Notify {
+impl WaitPoint<PayerPay, Txn<Terminal>> for AtNotifyReversalStart {
+    type Event = Notify;
+    fn event(&self) -> Notify {
         Notify { status: Status::ReversalInProgress }
     }
-    pub fn resume(self, _r: <Notify as Event>::Response) -> Next {
+    fn resume(self, _r: <Notify as Event>::Response) -> Next {
         Next::Wait(PayerPay::AtAwaitForcedReversal(AtAwaitForcedReversal { txn: self.txn }))
-    }
-}
+    }}
 
-impl AtAwaitForcedReversal {
-    pub fn event(&self) -> AwaitForcedReversal {
+impl WaitPoint<PayerPay, Txn<Terminal>> for AtAwaitForcedReversal {
+    type Event = AwaitForcedReversal;
+    fn event(&self) -> AwaitForcedReversal {
         AwaitForcedReversal { deadline_days: FORCED_REVERSAL_DEADLINE_DAYS }
     }
-    pub fn resume(self, _r: <AwaitForcedReversal as Event>::Response) -> Next {
+    fn resume(self, _r: <AwaitForcedReversal as Event>::Response) -> Next {
         Next::Wait(PayerPay::AtNotifyReversed(AtNotifyReversed { txn: self.txn }))
-    }
-}
+    }}
 
-impl AtNotifyReversed {
-    pub fn event(&self) -> Notify {
+impl WaitPoint<PayerPay, Txn<Terminal>> for AtNotifyReversed {
+    type Event = Notify;
+    fn event(&self) -> Notify {
         Notify { status: Status::Reversed }
     }
-    pub fn resume(self, _r: <Notify as Event>::Response) -> Next {
+    fn resume(self, _r: <Notify as Event>::Response) -> Next {
         Next::Done(self.txn.reversed().terminal())
-    }
-}
+    }}
 
 // ---- Runtime boundary -----------------------------------------------------------------
 
