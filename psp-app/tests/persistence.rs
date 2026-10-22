@@ -1,6 +1,6 @@
 //! The persistence contract, tested through the application's tables.
 
-use psp_app::{entity_state, open, open_in_memory, DriverError, Outcome, PayDriver, PayFlow, Sqlite, StoredPay};
+use psp_app::{entity_state, open, open_in_memory, DriverError, DeliveryOutcome, PayDriver, PayFlow, Sqlite, StoredPay};
 use psp_flow::*;
 use driver_framework::{Backend, Persist, Stored};
 
@@ -13,7 +13,7 @@ fn to_await_callback(d: &mut PayDriver, txn: u64) -> i64 {
     d.deliver(id, intent()).unwrap();
     d.deliver(id, AnyResponse::Mpin(Mpin(1234))).unwrap();
     match d.deliver(id, AnyResponse::ReqPay(ReqPayResponse::Ack)).unwrap() {
-        Outcome::Wait(AnyEvent::AwaitCallback(_)) => id,
+        DeliveryOutcome::Wait(AnyEvent::AwaitCallback(_)) => id,
         other => panic!("expected AwaitCallback, got {other:?}"),
     }
 }
@@ -33,8 +33,8 @@ fn entity_state_column_tracks_the_lifecycle() {
     d.deliver(id, AnyResponse::Callback(Callback::Success { debit_ref: Ref(1), credit_ref: Ref(2) })).unwrap();
     assert_eq!(state(&d, id), "Submitted");
     match d.deliver(id, AnyResponse::Unit).unwrap() {
-        Outcome::Done(t) => assert!(matches!(t.data, Terminal::Success(Success { credit_ref: Ref(2), .. }))),
-        Outcome::Wait(e) => panic!("still waiting on {e:?}"),
+        DeliveryOutcome::Done(t) => assert!(matches!(t.data, Terminal::Success(Success { credit_ref: Ref(2), .. }))),
+        DeliveryOutcome::Wait(e) => panic!("still waiting on {e:?}"),
     }
     assert_eq!(state(&d, id), "Success");
     assert_eq!(d.journal(id).unwrap().len(), 5);
@@ -62,8 +62,8 @@ fn crash_recovery_resumes_from_the_tables() {
     d.deliver(id, AnyResponse::Unit).unwrap();
     d.deliver(id, AnyResponse::Unit).unwrap();
     match d.deliver(id, AnyResponse::Unit).unwrap() {
-        Outcome::Done(t) => assert!(matches!(t.data, Terminal::Reversed(_))),
-        Outcome::Wait(e) => panic!("still waiting on {e:?}"),
+        DeliveryOutcome::Done(t) => assert!(matches!(t.data, Terminal::Reversed(_))),
+        DeliveryOutcome::Wait(e) => panic!("still waiting on {e:?}"),
     }
     assert_eq!(state(&d, id), "Reversed");
     assert!(d.pending().unwrap().is_empty());
@@ -79,7 +79,7 @@ fn violation_rolls_back_and_changes_nothing() {
     assert!(matches!(err, DriverError::Mismatch(i) if i == id));
     assert_eq!(state(&d, id), "Submitted");
     assert_eq!(d.journal(id).unwrap(), journal_before);
-    assert!(matches!(d.deliver(id, AnyResponse::Callback(Callback::Deemed)).unwrap(), Outcome::Wait(AnyEvent::Notify(Notify { status: Status::Processing }))));
+    assert!(matches!(d.deliver(id, AnyResponse::Callback(Callback::Deemed)).unwrap(), DeliveryOutcome::Wait(AnyEvent::Notify(Notify { status: Status::Processing }))));
 }
 
 #[test]
@@ -87,7 +87,7 @@ fn finished_instances_refuse_more_responses() {
     let mut d = open_in_memory().unwrap();
     let (id, _) = d.start(start(TxnId(4), PayerId(7))).unwrap();
     d.deliver(id, AnyResponse::Intent(RawIntent { payee: Vpa(7), amount: Amount(1) })).unwrap(); // payee == payer
-    assert!(matches!(d.deliver(id, AnyResponse::Unit).unwrap(), Outcome::Done(Txn { data: Terminal::Abandoned(_), .. })));
+    assert!(matches!(d.deliver(id, AnyResponse::Unit).unwrap(), DeliveryOutcome::Done(Txn { data: Terminal::Abandoned(_), .. })));
     assert!(matches!(d.deliver(id, AnyResponse::Unit).unwrap_err(), DriverError::AlreadyFinished(_)));
     assert!(matches!(d.deliver(999, AnyResponse::Unit).unwrap_err(), DriverError::UnknownInstance(999)));
 }

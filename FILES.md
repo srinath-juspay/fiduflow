@@ -145,7 +145,7 @@ instance is still waiting, loads the bookmark from the database, computes the ne
 journals, saves the new bookmark, advances the counter and commits; a violation returns
 before the commit so the transaction rolls back. `pending` rebuilds every waiting instance
 from the tables for crash recovery. `journal` reads the log back. `DriverError` and
-`Outcome` are the result types.
+`DeliveryOutcome` are the result types.
 
 ---
 

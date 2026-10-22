@@ -2,14 +2,14 @@
 //! `upi_txn.state` column after every interaction, plus the journal, so the persistence
 //! contract is visible: saved before each wait, loaded on each response.
 
-use psp_app::{entity_state, open, Outcome, PayDriver};
+use psp_app::{entity_state, open, DeliveryOutcome, PayDriver};
 use psp_flow::*;
 
-fn show(d: &PayDriver, id: i64, label: &str, o: &Outcome<AnyEvent, Txn<Terminal>>) {
+fn show(d: &PayDriver, id: i64, label: &str, o: &DeliveryOutcome<AnyEvent, Txn<Terminal>>) {
     let state = entity_state(d.backend().connection(), id).unwrap();
     match o {
-        Outcome::Wait(ev) => println!("  {label:<34} upi_txn.state={state:<16} waiting on {ev:?}"),
-        Outcome::Done(t) => println!("  {label:<34} upi_txn.state={state:<16} DONE {:?}", t.data),
+        DeliveryOutcome::Wait(ev) => println!("  {label:<34} upi_txn.state={state:<16} waiting on {ev:?}"),
+        DeliveryOutcome::Done(t) => println!("  {label:<34} upi_txn.state={state:<16} DONE {:?}", t.data),
     }
 }
 

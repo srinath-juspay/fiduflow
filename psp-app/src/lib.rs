@@ -5,7 +5,7 @@
 
 pub mod persistence;
 
-pub use driver_framework::{Driver, DriverError, Flow, Next, Outcome, Refused};
+pub use driver_framework::{Driver, DriverError, Flow, Next, DeliveryOutcome, Refused};
 pub use persistence::{entity_state, StoredPay};
 pub use store_framework::sqlite::Sqlite;
 

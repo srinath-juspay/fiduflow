@@ -43,10 +43,13 @@ pub enum DriverError<E: Debug> {
     Mismatch(InstanceId),
 }
 
+/// What `deliver` reports to its caller: `Next` as seen from outside the driver, with the
+/// bookmark (stored, and private to the driver) replaced by the event it is waiting on.
 #[derive(Debug)]
-pub enum Outcome<E, D> {
+pub enum DeliveryOutcome<E, D> {
     /// The instance now waits on this interaction. Perform it, then `deliver` the response.
     Wait(E),
+    /// The run is over; this is the value it left behind.
     Done(D),
 }
 
@@ -78,7 +81,7 @@ impl<F: Persist<B>, B: Backend> Driver<F, B> {
     }
 
     /// A response arrived: load, step, store, journal, commit.
-    pub fn deliver(&mut self, id: InstanceId, r: F::Response) -> Res<Outcome<F::Event, F::Done>, B> {
+    pub fn deliver(&mut self, id: InstanceId, r: F::Response) -> Res<DeliveryOutcome<F::Event, F::Done>, B> {
         let mut tx = self.backend.begin().map_err(DriverError::Db)?;
         match B::instance(&mut tx, id).map_err(DriverError::Db)? {
             None => return Err(DriverError::UnknownInstance(id)),
@@ -96,12 +99,12 @@ impl<F: Persist<B>, B: Backend> Driver<F, B> {
                     Next::Wait(s1) => {
                         Self::save(&mut tx, id, Stored::Waiting(s1))?;
                         B::advance(&mut tx, id, info.seq + 1, Status::Waiting).map_err(DriverError::Db)?;
-                        Outcome::Wait(F::event(&s1))
+                        DeliveryOutcome::Wait(F::event(&s1))
                     }
                     Next::Done(d) => {
                         Self::save(&mut tx, id, Stored::Finished(d))?;
                         B::advance(&mut tx, id, info.seq + 1, Status::Finished).map_err(DriverError::Db)?;
-                        Outcome::Done(d)
+                        DeliveryOutcome::Done(d)
                     }
                 };
                 B::commit(tx).map_err(DriverError::Db)?;
