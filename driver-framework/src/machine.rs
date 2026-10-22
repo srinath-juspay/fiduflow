@@ -25,9 +25,14 @@ pub trait Flow {
     fn step(s: Self::State, r: Self::Response) -> Option<Next<Self::State, Self::Done>>;
 }
 
+/// What `step` decides after consuming a response: either the flow pauses again at a new
+/// bookmark, which the driver stores before issuing its event, or it is finished and this
+/// is the value it leaves behind, which the driver stores and reports to the caller.
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub enum Next<S, D> {
+    /// Pause at this bookmark; its `event` is the next interaction to perform.
     Wait(S),
+    /// The run is over; no further responses are accepted for the instance.
     Done(D),
 }
 
