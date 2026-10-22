@@ -4,9 +4,9 @@
 //! One invocation holds the entity (states), the interactions (each with its response
 //! type), the pure decisions, and the body in an async style. The macro lowers it to a
 //! first-order machine: one typed wait point per `ask`, the `PayerPay` bookmark enum,
-//! `start`, and the boundary `event`/`deliver`. The expansion is committed next to this
-//! file as `expanded.rs` (regenerate with `scripts/expand-psp-dsl.sh`) and is what Charon
-//! and Aeneas translate.
+//! `start`, and the boundary `event`/`deliver`. `scripts/expand-psp-dsl.sh` writes the
+//! formatted expansion to `generated-src/expanded.rs` (ignored by git) for reading; it is
+//! what Charon and Aeneas translate.
 //!
 //! `#[at(Name)]` names a wait point; without it the name is `At` + the event name.
 
