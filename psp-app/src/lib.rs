@@ -1,17 +1,29 @@
-//! The application: binds the generated-shaped machine in `psp_flow` to the framework and
-//! models the tables it is saved to. This is the only crate that knows about payments.
+//! The application: binds the flow machine in `psp_flow` to the persistence layer.
+//!
+//! This crate provides the integration between the flow logic and the SeaORM-based
+//! persistence layer.
 
 #![forbid(unsafe_code)]
 
-pub mod persistence;
+// Re-export the persistence layer
+pub use psp_persistence::{
+    decompose, reconstruct, EntitySnapshot, EventData, EventRequest, EventResponse, EventStatus,
+    EventType, FlowContext, FlowStore, ReconstructError, Segment,
+};
 
-pub use driver_framework::{Driver, DriverError, Flow, Next, DeliveryOutcome, Refused};
-pub use persistence::{entity_state, StoredPay};
-pub use store_framework::sqlite::Sqlite;
+// Re-export the SeaORM store
+pub use psp_persistence_sea::SeaFlowStore;
 
-use psp_flow::{AnyEvent, AnyResponse, Mismatch, PayerPay, Terminal, Txn};
+// Re-export flow types
+pub use psp_flow::{AnyEvent, AnyResponse, PayerPay, Terminal, Txn};
+pub use psp_flow::values::TxnId;
 
-/// The pay flow, as the framework sees it. What `#[flow]` would generate.
+// Re-export driver framework types
+pub use driver_framework::{Flow, Next, Refused};
+
+use psp_flow::Mismatch;
+
+/// The pay flow marker type.
 pub struct PayFlow;
 
 impl Flow for PayFlow {
@@ -21,20 +33,11 @@ impl Flow for PayFlow {
     type Event = AnyEvent;
     type Response = AnyResponse;
 
-    fn event(s: &PayerPay) -> AnyEvent { psp_flow::event(s) }
+    fn event(s: &PayerPay) -> AnyEvent {
+        psp_flow::event(s)
+    }
 
     fn step(s: PayerPay, r: AnyResponse) -> Result<Next<PayerPay, Txn<Terminal>>, Refused> {
         psp_flow::deliver(s, r).map_err(|Mismatch::ResponseMismatch| Refused::Mismatch)
     }
-}
-
-/// The pay flow on SQLite.
-pub type PayDriver = Driver<PayFlow, Sqlite>;
-
-pub fn open(path: &str) -> rusqlite::Result<PayDriver> {
-    Driver::new(Sqlite::open(path)?)
-}
-
-pub fn open_in_memory() -> rusqlite::Result<PayDriver> {
-    Driver::new(Sqlite::open_in_memory()?)
 }

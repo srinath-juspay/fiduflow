@@ -1,0 +1,22 @@
+//! Pure persistence bridge layer for the PSP flow.
+//!
+//! This crate provides:
+//! - Typed entity snapshots per state
+//! - Cross-segment context contracts (Reads/Writes)
+//! - Event data structures for lifecycle tracking
+//! - Pure decompose/reconstruct functions (verifiable)
+//! - Storage trait for database implementations
+
+pub mod context;
+pub mod decompose;
+pub mod entity;
+pub mod event_data;
+pub mod reconstruct;
+pub mod store;
+
+pub use context::{FlowContext, Segment};
+pub use decompose::decompose;
+pub use entity::EntitySnapshot;
+pub use event_data::{EventData, EventRequest, EventResponse, EventStatus, EventType};
+pub use reconstruct::{reconstruct, ReconstructError};
+pub use store::FlowStore;

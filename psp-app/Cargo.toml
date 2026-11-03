@@ -6,6 +6,11 @@ description = "The UPI pay flow bound to the framework: Flow impl, the applicati
 
 [dependencies]
 psp_flow = { path = "../psp-flow", features = ["runtime"] }
-store-framework = { path = "../store-framework" }
+psp-persistence = { path = "../psp-persistence" }
+psp-persistence-sea = { path = "../psp-persistence-sea" }
 driver-framework = { path = "../driver-framework" }
-rusqlite = { workspace = true }
+tokio = { version = "1", features = ["rt-multi-thread", "macros"] }
+
+# Legacy support - will be removed once migration is complete
+# store-framework = { path = "../store-framework" }
+# rusqlite = { workspace = true }

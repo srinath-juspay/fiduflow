@@ -1,10 +1,11 @@
 [workspace]
 resolver = "2"
-members = ["psp-flow", "store-framework", "driver-framework", "psp-app", "flow-macro", "psp-flow-dsl"]
+members = ["psp-flow", "driver-framework", "psp-app", "flow-macro", "psp-flow-dsl", "psp-persistence", "psp-persistence-sea"]
+# store-framework excluded - uses rusqlite which conflicts with sea-orm's sqlx
 
 [workspace.package]
 edition = "2021"
 version = "0.1.0"
 
 [workspace.dependencies]
-rusqlite = { version = "0.31", features = ["bundled"] }
+# rusqlite removed - we use sea-orm instead

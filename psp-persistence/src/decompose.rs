@@ -1,0 +1,237 @@
+//! Decompose a PayerPay bookmark into persistence-friendly snapshots.
+//!
+//! This function takes a flow bookmark and extracts:
+//! - EntitySnapshot: the entity state data
+//! - FlowContext: cross-segment locals (currently empty)
+//! - EventData: the current event being awaited
+//!
+//! The decomposition is pure and can be formally verified.
+
+use crate::context::FlowContext;
+use crate::entity::*;
+use crate::event_data::*;
+use psp_flow::machine::*;
+use psp_flow::values::*;
+
+/// Decompose a PayerPay bookmark into its persistence components.
+///
+/// Returns (EntitySnapshot, FlowContext, EventData).
+/// The `seq` parameter is the sequence number to assign to the event.
+pub fn decompose(bookmark: &PayerPay, seq: i32) -> (EntitySnapshot, FlowContext, EventData) {
+    let ctx = FlowContext::default();
+
+    match bookmark {
+        PayerPay::AtGetPaymentIntent(w) => {
+            let entity = EntitySnapshot::Initiated(InitiatedEntity {
+                id: w.txn.id,
+                payer: w.txn.data.payer,
+            });
+            let request = EventRequest::get_payment_intent(w.txn.data.payer);
+            let event = EventData::new(seq, EventType::GetPaymentIntent, request);
+            (entity, ctx, event)
+        }
+
+        PayerPay::AtShowError(w) => {
+            let entity = EntitySnapshot::Initiated(InitiatedEntity {
+                id: w.txn.id,
+                payer: w.txn.data.payer,
+            });
+            let request = EventRequest::show_error(w.reason);
+            let event = EventData::new(seq, EventType::ShowError, request);
+            (entity, ctx, event)
+        }
+
+        PayerPay::AtCollectMpin(w) => {
+            let entity = EntitySnapshot::Initiated(InitiatedEntity {
+                id: w.txn.id,
+                payer: w.txn.data.payer,
+            });
+            let request = EventRequest::collect_mpin(w.txn.data.payer, w.intent);
+            let event = EventData::new(seq, EventType::CollectMpin, request);
+            (entity, ctx, event)
+        }
+
+        PayerPay::AtReqPay(w) => {
+            let entity = EntitySnapshot::Authenticated(AuthenticatedEntity {
+                id: w.txn.id,
+                payer: w.txn.data.payer,
+                intent: w.txn.data.intent,
+                mpin: w.txn.data.mpin,
+            });
+            let request = EventRequest::req_pay(w.req);
+            let event = EventData::new(seq, EventType::ReqPay, request);
+            (entity, ctx, event)
+        }
+
+        PayerPay::AtNotifyRejected(w) => {
+            let entity = EntitySnapshot::Authenticated(AuthenticatedEntity {
+                id: w.txn.id,
+                payer: w.txn.data.payer,
+                intent: w.txn.data.intent,
+                mpin: w.txn.data.mpin,
+            });
+            let request = EventRequest::notify(Status::Failed(w.reason));
+            let event = EventData::new(seq, EventType::Notify, request);
+            (entity, ctx, event)
+        }
+
+        PayerPay::AtAwaitCallback(w) => {
+            let entity = EntitySnapshot::Submitted(SubmittedEntity {
+                id: w.txn.id,
+                req: w.txn.data.req,
+            });
+            let request = EventRequest::await_callback(CALLBACK_TIMEOUT_SECS);
+            let event = EventData::new(seq, EventType::AwaitCallback, request);
+            (entity, ctx, event)
+        }
+
+        PayerPay::AtNotifySuccess(w) => {
+            let entity = EntitySnapshot::Submitted(SubmittedEntity {
+                id: w.txn.id,
+                req: w.txn.data.req,
+            });
+            let request = EventRequest::notify(Status::Successful);
+            let event = EventData::new(seq, EventType::Notify, request);
+            (entity, ctx, event)
+        }
+
+        PayerPay::AtNotifyFailed(w) => {
+            let entity = EntitySnapshot::Submitted(SubmittedEntity {
+                id: w.txn.id,
+                req: w.txn.data.req,
+            });
+            let request = EventRequest::notify(Status::Failed(w.reason));
+            let event = EventData::new(seq, EventType::Notify, request);
+            (entity, ctx, event)
+        }
+
+        PayerPay::AtNotifyProcessing(w) => {
+            let entity = EntitySnapshot::Submitted(SubmittedEntity {
+                id: w.txn.id,
+                req: w.txn.data.req,
+            });
+            let request = EventRequest::notify(Status::Processing);
+            let event = EventData::new(seq, EventType::Notify, request);
+            (entity, ctx, event)
+        }
+
+        PayerPay::AtAwaitDeemed(w) => {
+            let entity = EntitySnapshot::Deemed(DeemedEntity {
+                id: w.txn.id,
+                req: w.txn.data.req,
+            });
+            let request = EventRequest::await_deemed_resolution(DEEMED_DEADLINE_DAYS);
+            let event = EventData::new(seq, EventType::AwaitDeemedResolution, request);
+            (entity, ctx, event)
+        }
+
+        PayerPay::AtNotifyConfirmed(w) => {
+            let entity = EntitySnapshot::Deemed(DeemedEntity {
+                id: w.txn.id,
+                req: w.txn.data.req,
+            });
+            let request = EventRequest::notify(Status::Confirmed);
+            let event = EventData::new(seq, EventType::Notify, request);
+            (entity, ctx, event)
+        }
+
+        PayerPay::AtNotifyDeemedReversed(w) => {
+            let entity = EntitySnapshot::Deemed(DeemedEntity {
+                id: w.txn.id,
+                req: w.txn.data.req,
+            });
+            let request = EventRequest::notify(Status::Reversed);
+            let event = EventData::new(seq, EventType::Notify, request);
+            (entity, ctx, event)
+        }
+
+        PayerPay::AtNotifyReversalStart(w) => {
+            let entity = EntitySnapshot::ReversalPending(ReversalPendingEntity {
+                id: w.txn.id,
+                req: w.txn.data.req,
+            });
+            let request = EventRequest::notify(Status::ReversalInProgress);
+            let event = EventData::new(seq, EventType::Notify, request);
+            (entity, ctx, event)
+        }
+
+        PayerPay::AtAwaitForcedReversal(w) => {
+            let entity = EntitySnapshot::ReversalPending(ReversalPendingEntity {
+                id: w.txn.id,
+                req: w.txn.data.req,
+            });
+            let request = EventRequest::await_forced_reversal(FORCED_REVERSAL_DEADLINE_DAYS);
+            let event = EventData::new(seq, EventType::AwaitForcedReversal, request);
+            (entity, ctx, event)
+        }
+
+        PayerPay::AtNotifyReversed(w) => {
+            let entity = EntitySnapshot::ReversalPending(ReversalPendingEntity {
+                id: w.txn.id,
+                req: w.txn.data.req,
+            });
+            let request = EventRequest::notify(Status::Reversed);
+            let event = EventData::new(seq, EventType::Notify, request);
+            (entity, ctx, event)
+        }
+    }
+}
+
+/// Get the wait point name for a PayerPay bookmark.
+pub fn wait_point_name(bookmark: &PayerPay) -> &'static str {
+    match bookmark {
+        PayerPay::AtGetPaymentIntent(_) => "AtGetPaymentIntent",
+        PayerPay::AtShowError(_) => "AtShowError",
+        PayerPay::AtCollectMpin(_) => "AtCollectMpin",
+        PayerPay::AtReqPay(_) => "AtReqPay",
+        PayerPay::AtNotifyRejected(_) => "AtNotifyRejected",
+        PayerPay::AtAwaitCallback(_) => "AtAwaitCallback",
+        PayerPay::AtNotifySuccess(_) => "AtNotifySuccess",
+        PayerPay::AtNotifyFailed(_) => "AtNotifyFailed",
+        PayerPay::AtNotifyProcessing(_) => "AtNotifyProcessing",
+        PayerPay::AtAwaitDeemed(_) => "AtAwaitDeemed",
+        PayerPay::AtNotifyConfirmed(_) => "AtNotifyConfirmed",
+        PayerPay::AtNotifyDeemedReversed(_) => "AtNotifyDeemedReversed",
+        PayerPay::AtNotifyReversalStart(_) => "AtNotifyReversalStart",
+        PayerPay::AtAwaitForcedReversal(_) => "AtAwaitForcedReversal",
+        PayerPay::AtNotifyReversed(_) => "AtNotifyReversed",
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use psp_flow::entity::{Initiated, Txn};
+
+    #[test]
+    fn test_decompose_at_get_payment_intent() {
+        let txn = Txn::new(TxnId(1), PayerId(42));
+        let bookmark = PayerPay::AtGetPaymentIntent(AtGetPaymentIntent { txn });
+
+        let (entity, ctx, event) = decompose(&bookmark, 0);
+
+        assert!(matches!(entity, EntitySnapshot::Initiated(e) if e.id == TxnId(1) && e.payer == PayerId(42)));
+        assert_eq!(ctx, FlowContext::default());
+        assert_eq!(event.seq, 0);
+        assert_eq!(event.event_type, EventType::GetPaymentIntent);
+        assert_eq!(event.status, EventStatus::Awaiting);
+        assert_eq!(event.request.payer, Some(PayerId(42)));
+    }
+
+    #[test]
+    fn test_decompose_at_collect_mpin() {
+        let txn = Txn::new(TxnId(1), PayerId(42));
+        let intent = ValidIntent {
+            payee: Vpa(100),
+            amount: Amount(5000),
+        };
+        let bookmark = PayerPay::AtCollectMpin(AtCollectMpin { txn, intent });
+
+        let (entity, _ctx, event) = decompose(&bookmark, 1);
+
+        assert!(matches!(entity, EntitySnapshot::Initiated(_)));
+        assert_eq!(event.seq, 1);
+        assert_eq!(event.event_type, EventType::CollectMpin);
+        assert_eq!(event.request.intent, Some(intent));
+    }
+}

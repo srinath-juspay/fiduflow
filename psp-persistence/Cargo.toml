@@ -1,0 +1,14 @@
+[package]
+name = "psp-persistence"
+edition.workspace = true
+version.workspace = true
+description = "Pure persistence bridge layer: typed decompose/reconstruct and storage traits"
+
+[features]
+default = ["runtime"]
+runtime = ["psp_flow/runtime"]
+
+[dependencies]
+psp_flow = { path = "../psp-flow", features = ["runtime"] }
+
+[dev-dependencies]
