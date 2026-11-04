@@ -265,14 +265,14 @@ pub fn model_to_event(model: &events::Model) -> Result<EventData, ConversionErro
 
 // ---- FlowContext <-> flow_context::Model ----
 
-pub fn context_to_model(txn_id: TxnId, _ctx: &FlowContext) -> flow_context::ActiveModel {
+pub fn context_to_model(txn_id: TxnId, ctx: &FlowContext) -> flow_context::ActiveModel {
     flow_context::ActiveModel {
         txn_id: Set(txn_id.0 as i64),
-        // Add field mappings here as context grows
+        data: Set(serde_json::to_string(ctx).unwrap()),
     }
 }
 
-pub fn model_to_context(_model: &flow_context::Model) -> FlowContext {
-    // Currently empty, just return default
-    FlowContext::default()
+pub fn model_to_context(model: &flow_context::Model) -> Result<FlowContext, ConversionError> {
+    let ctx: FlowContext = serde_json::from_str(&model.data)?;
+    Ok(ctx)
 }

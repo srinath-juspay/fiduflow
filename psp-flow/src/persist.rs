@@ -1,10 +1,51 @@
-//! Typed persistence structures for event request/response data.
+//! Typed persistence structures for the PSP flow.
 //!
 //! These types capture the domain-specific data needed to persist and reconstruct
-//! flow events. They are serializable via serde for storage as JSON.
+//! flow state. They are serializable via serde for storage as JSON.
+//!
+//! - `FlowContext`: Cross-segment locals (e.g., is_high_value)
+//! - `EventRequest`/`EventResponse`: Event lifecycle data
 
 use crate::values::*;
 use serde::{Deserialize, Serialize};
+
+// ============================================================================
+// Flow Context (cross-segment locals)
+// ============================================================================
+
+/// Cross-segment local variables for the PSP flow.
+///
+/// These values are computed in one segment and used in later segments
+/// for decision-making (e.g., SLA handling, timeout policies).
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Default, Serialize, Deserialize)]
+pub struct FlowContext {
+    /// High-value transaction flag.
+    ///
+    /// Set in Authenticated segment when `amount > HIGH_VALUE_THRESHOLD`.
+    /// Used in Submitted/Deemed segments for different SLA handling
+    /// (longer timeouts, priority processing).
+    #[serde(default)]
+    pub is_high_value: bool,
+}
+
+impl FlowContext {
+    /// Create a new empty context (all defaults).
+    pub fn new() -> Self {
+        Self::default()
+    }
+
+    /// Create a context with the high-value flag set.
+    pub fn with_high_value(is_high_value: bool) -> Self {
+        Self { is_high_value }
+    }
+}
+
+/// Threshold for high-value transactions (in smallest currency unit).
+pub const HIGH_VALUE_THRESHOLD: u64 = 100_000; // e.g., ₹1,00,000
+
+// ============================================================================
+// Event Types
+// ============================================================================
 
 /// The type of event being tracked.
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, Serialize, Deserialize)]

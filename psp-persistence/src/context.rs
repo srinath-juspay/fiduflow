@@ -1,8 +1,14 @@
-//! Cross-segment context contracts.
+//! Context types for the PSP flow persistence layer.
 //!
-//! This module defines what each segment reads and writes from a shared context.
-//! Currently the context is empty (no cross-segment locals needed), but the structure
-//! allows for extension when segments need to pass data to later segments.
+//! - `FlowContext`: Typed cross-segment locals (re-exported from psp_flow)
+//! - `ContextData`: Generic JSON storage (re-exported from driver_framework)
+//! - `Segment`: Flow segment enum for querying by state
+
+// Re-export typed FlowContext from psp_flow
+pub use psp_flow::persist::FlowContext;
+
+// Re-export generic ContextData from driver_framework
+pub use driver_framework::ContextData;
 
 /// The segment of the flow, used for querying transactions by their current position.
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
@@ -36,63 +42,5 @@ impl Segment {
             "ReversalPending" => Some(Segment::ReversalPending),
             _ => None,
         }
-    }
-}
-
-// Per-segment contracts (marker types for documentation and future compile-time checks)
-
-/// What the Initiated segment reads from context.
-pub struct InitiatedReads;
-
-/// What the Initiated segment writes to context.
-pub struct InitiatedWrites;
-
-/// What the Authenticated segment reads from context.
-pub struct AuthenticatedReads;
-
-/// What the Authenticated segment writes to context.
-pub struct AuthenticatedWrites;
-
-/// What the Submitted segment reads from context.
-pub struct SubmittedReads;
-
-/// What the Submitted segment writes to context.
-pub struct SubmittedWrites;
-
-/// What the Deemed segment reads from context.
-pub struct DeemedReads;
-
-/// What the Deemed segment writes to context.
-pub struct DeemedWrites;
-
-/// What the ReversalPending segment reads from context.
-pub struct ReversalPendingReads;
-
-/// What the ReversalPending segment writes to context.
-pub struct ReversalPendingWrites;
-
-/// Storage for cross-segment locals.
-///
-/// This struct holds values that need to be passed between segments.
-/// Currently empty but can be extended as needed.
-///
-/// # Example Extension
-///
-/// ```ignore
-/// pub struct FlowContext {
-///     pub high_value_transaction: Option<bool>,
-///     pub risk_score: Option<u32>,
-/// }
-/// ```
-#[derive(Debug, Clone, Default, PartialEq, Eq)]
-pub struct FlowContext {
-    // Add cross-segment locals here as needed.
-    // The Default derive provides an empty context.
-}
-
-impl FlowContext {
-    /// Create a new empty context.
-    pub fn new() -> Self {
-        Self::default()
     }
 }

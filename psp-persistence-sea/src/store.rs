@@ -95,12 +95,13 @@ impl SeaFlowStore {
             )
             .await?;
 
-        // Create flow_context table
+        // Create flow_context table (with JSON data column)
         self.db
             .execute_unprepared(
                 r#"
             CREATE TABLE IF NOT EXISTS flow_context (
                 txn_id INTEGER PRIMARY KEY,
+                data TEXT NOT NULL,
                 FOREIGN KEY (txn_id) REFERENCES upi_txn(id)
             )
             "#,
@@ -271,10 +272,10 @@ impl FlowStore for SeaFlowStore {
             .one(&self.db)
             .await?;
 
-        Ok(match model {
-            Some(m) => model_to_context(&m),
-            None => FlowContext::default(),
-        })
+        match model {
+            Some(m) => Ok(model_to_context(&m)?),
+            None => Ok(FlowContext::default()),
+        }
     }
 
     async fn find_pending(&self) -> Result<Vec<TxnId>, Self::Error> {
@@ -382,5 +383,45 @@ mod tests {
 
         let pending = store.find_pending().await.unwrap();
         assert_eq!(pending, vec![id1]);
+    }
+
+    #[tokio::test]
+    async fn test_save_load_context_with_high_value() {
+        let store = setup_test_db().await;
+        let id = TxnId(1);
+
+        // First save the entity (foreign key constraint)
+        let entity = EntitySnapshot::Initiated(InitiatedEntity {
+            id,
+            payer: PayerId(42),
+        });
+        store.save_entity(id, &entity).await.unwrap();
+
+        // Save context with is_high_value = true
+        let ctx = FlowContext::with_high_value(true);
+        store.save_context(id, &ctx).await.unwrap();
+
+        // Load and verify
+        let loaded = store.load_context(id).await.unwrap();
+        assert_eq!(loaded.is_high_value, true);
+
+        // Update context with is_high_value = false
+        let ctx2 = FlowContext::with_high_value(false);
+        store.save_context(id, &ctx2).await.unwrap();
+
+        // Load and verify update
+        let loaded2 = store.load_context(id).await.unwrap();
+        assert_eq!(loaded2.is_high_value, false);
+    }
+
+    #[tokio::test]
+    async fn test_load_default_context() {
+        let store = setup_test_db().await;
+        let id = TxnId(999);
+
+        // Load context for non-existent transaction
+        let ctx = store.load_context(id).await.unwrap();
+        assert_eq!(ctx, FlowContext::default());
+        assert_eq!(ctx.is_high_value, false);
     }
 }

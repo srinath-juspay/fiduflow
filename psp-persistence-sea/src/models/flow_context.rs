@@ -1,7 +1,7 @@
 //! SeaORM entity model for the flow_context table.
 //!
 //! This table stores cross-segment locals for each transaction.
-//! Currently minimal, but designed for extension.
+//! Context data is stored as JSON for flexibility.
 
 use sea_orm::entity::prelude::*;
 
@@ -12,11 +12,9 @@ pub struct Model {
     #[sea_orm(primary_key, auto_increment = false)]
     pub txn_id: i64,
 
-    // ---- Cross-segment locals ----
-    // Add fields here as the context grows.
-    // Example:
-    // pub high_value_transaction: Option<bool>,
-    // pub risk_score: Option<i32>,
+    /// Context data as JSON string.
+    /// Contains cross-segment locals (e.g., is_high_value).
+    pub data: String,
 }
 
 #[derive(Copy, Clone, Debug, EnumIter, DeriveRelation)]
