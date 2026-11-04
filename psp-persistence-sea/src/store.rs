@@ -308,7 +308,7 @@ impl FlowStore for SeaFlowStore {
 #[cfg(all(test, feature = "sqlite"))]
 mod tests {
     use super::*;
-    use psp_flow::persist::EventRequest;
+    use psp_flow::persist::GetPaymentIntentRequest;
     use psp_flow::values::*;
     use psp_persistence::entity::InitiatedEntity;
     use sea_orm::Database;
@@ -347,7 +347,7 @@ mod tests {
         });
         store.save_entity(id, &entity).await.unwrap();
 
-        let request = EventRequest::get_payment_intent(PayerId(42));
+        let request = GetPaymentIntentRequest { payer: PayerId(42) };
         let event = EventData::new(
             0,
             "GetPaymentIntent",

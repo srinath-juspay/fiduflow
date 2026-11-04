@@ -5,7 +5,7 @@
 
 use crate::context::{FlowContext, Segment};
 use crate::entity::EntitySnapshot;
-use crate::event_data::{EventData, EventResponse, EventStatus};
+use crate::event_data::{EventData, EventStatus};
 use psp_flow::values::TxnId;
 use serde_json::Value as JsonValue;
 use std::error::Error;
@@ -150,22 +150,6 @@ pub trait FlowStoreExt: FlowStore {
             self.save_entity(id, entity).await?;
             self.save_context(id, ctx).await?;
             self.insert_event(id, event).await
-        }
-    }
-
-    /// Update event response with typed EventResponse (serializes to JSON).
-    fn update_event_response_typed(
-        &self,
-        id: TxnId,
-        seq: i32,
-        response: &EventResponse,
-    ) -> impl Future<Output = Result<(), Self::Error>> + Send {
-        async move {
-            let json = serde_json::to_value(response).map_err(|_| {
-                // This shouldn't happen with valid EventResponse
-                panic!("Failed to serialize EventResponse")
-            })?;
-            self.update_event_response(id, seq, json).await
         }
     }
 }

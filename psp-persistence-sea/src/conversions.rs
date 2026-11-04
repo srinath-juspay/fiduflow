@@ -234,8 +234,8 @@ pub fn event_to_model(txn_id: TxnId, event: &EventData) -> events::ActiveModel {
         seq: Set(event.seq),
         event_type: Set(event.event_type.clone()),
         status: Set(event.status.as_str().to_string()),
-        request: Set(serde_json::to_string(&event.request).unwrap()),
-        response: Set(event.response.as_ref().map(|r| serde_json::to_string(r).unwrap())),
+        request: Set(serde_json::to_string(&event.request_body).unwrap()),
+        response: Set(event.response_body.as_ref().map(|r| serde_json::to_string(r).unwrap())),
         created_at: Set(now),
         sent_at: Set(None),
         received_at: Set(None),
@@ -247,8 +247,8 @@ pub fn model_to_event(model: &events::Model) -> Result<EventData, ConversionErro
     let status = EventStatus::from_str(&model.status)
         .ok_or_else(|| ConversionError::InvalidEventStatus(model.status.clone()))?;
 
-    let request: serde_json::Value = serde_json::from_str(&model.request)?;
-    let response: Option<serde_json::Value> = model
+    let request_body: serde_json::Value = serde_json::from_str(&model.request)?;
+    let response_body: Option<serde_json::Value> = model
         .response
         .as_ref()
         .map(|s| serde_json::from_str(s))
@@ -258,8 +258,8 @@ pub fn model_to_event(model: &events::Model) -> Result<EventData, ConversionErro
         seq: model.seq,
         event_type: model.event_type.clone(),
         status,
-        request,
-        response,
+        request_body,
+        response_body,
     })
 }
 

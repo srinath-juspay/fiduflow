@@ -6,9 +6,11 @@
 #![forbid(unsafe_code)]
 
 // Re-export the persistence layer
+// Note: Per-event request/response types (GetPaymentIntentRequest, etc.) are available
+// via psp_persistence or psp_flow::persist when needed for storage operations.
 pub use psp_persistence::{
-    decompose, reconstruct, EntitySnapshot, EventData, EventRequest, EventResponse, EventStatus,
-    EventType, FlowContext, FlowStore, ReconstructError, Segment,
+    decompose, reconstruct, EntitySnapshot, EventData, EventStatus, EventType, FlowContext,
+    FlowStore, ReconstructError, Segment,
 };
 
 // Re-export the SeaORM store

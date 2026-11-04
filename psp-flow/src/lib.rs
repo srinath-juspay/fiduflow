@@ -27,5 +27,5 @@ pub use entity::*;
 pub use events::*;
 pub use machine::*;
 
-#[cfg(feature = "persist")]
-pub use persist::*;
+// Note: persist types are NOT glob-exported to avoid name conflicts with events.rs
+// Import explicitly from psp_flow::persist::* when needed for storage operations.

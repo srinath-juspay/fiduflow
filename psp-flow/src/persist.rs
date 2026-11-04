@@ -1,10 +1,11 @@
 //! Typed persistence structures for the PSP flow.
 //!
-//! These types capture the domain-specific data needed to persist and reconstruct
-//! flow state. They are serializable via serde for storage as JSON.
-//!
+//! This module provides:
 //! - `FlowContext`: Cross-segment locals (e.g., is_high_value)
-//! - `EventRequest`/`EventResponse`: Event lifecycle data
+//! - Per-event request/response types that serialize directly to JSON
+//!
+//! Each event type has its own request and response struct with exactly
+//! the fields it needs. These serialize via serde to JSON for storage.
 
 use crate::values::*;
 use serde::{Deserialize, Serialize};
@@ -44,7 +45,7 @@ impl FlowContext {
 pub const HIGH_VALUE_THRESHOLD: u64 = 100_000; // e.g., ₹1,00,000
 
 // ============================================================================
-// Event Types
+// Event Type
 // ============================================================================
 
 /// The type of event being tracked.
@@ -74,260 +75,211 @@ impl EventType {
             EventType::AwaitForcedReversal => "AwaitForcedReversal",
         }
     }
+
+    /// Parse event type from string.
+    pub fn from_str(s: &str) -> Option<Self> {
+        match s {
+            "GetPaymentIntent" => Some(EventType::GetPaymentIntent),
+            "ShowError" => Some(EventType::ShowError),
+            "CollectMpin" => Some(EventType::CollectMpin),
+            "Notify" => Some(EventType::Notify),
+            "ReqPay" => Some(EventType::ReqPay),
+            "AwaitCallback" => Some(EventType::AwaitCallback),
+            "AwaitDeemedResolution" => Some(EventType::AwaitDeemedResolution),
+            "AwaitForcedReversal" => Some(EventType::AwaitForcedReversal),
+            _ => None,
+        }
+    }
 }
 
-/// The type of ReqPay result.
+// ============================================================================
+// GetPaymentIntent Event
+// ============================================================================
+
+/// Request for GetPaymentIntent: ask user for payment intent.
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize)]
+pub struct GetPaymentIntentRequest {
+    pub payer: PayerId,
+}
+
+/// Response from GetPaymentIntent: raw intent from user.
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize)]
+pub struct GetPaymentIntentResponse {
+    pub intent: RawIntent,
+}
+
+// ============================================================================
+// ShowError Event
+// ============================================================================
+
+/// Request for ShowError: display error to user.
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize)]
+pub struct ShowErrorRequest {
+    pub reason: Reason,
+}
+
+/// Response from ShowError: acknowledgment (unit response).
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Default, Serialize, Deserialize)]
+pub struct ShowErrorResponse;
+
+// ============================================================================
+// CollectMpin Event
+// ============================================================================
+
+/// Request for CollectMpin: ask user for MPIN.
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize)]
+pub struct CollectMpinRequest {
+    pub payer: PayerId,
+    pub intent: ValidIntent,
+}
+
+/// Response from CollectMpin: user's MPIN.
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize)]
+pub struct CollectMpinResponse {
+    pub mpin: Mpin,
+}
+
+// ============================================================================
+// Notify Event
+// ============================================================================
+
+/// Request for Notify: inform user of status.
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize)]
+pub struct NotifyRequest {
+    pub status: Status,
+}
+
+/// Response from Notify: acknowledgment (unit response).
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Default, Serialize, Deserialize)]
+pub struct NotifyResponse;
+
+// ============================================================================
+// ReqPay Event
+// ============================================================================
+
+/// Request for ReqPay: send payment request to switch.
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize)]
+pub struct ReqPayRequest {
+    pub req: PayRequest,
+}
+
+/// Response from ReqPay: ack or rejection.
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize)]
+pub struct ReqPayResponse {
+    pub result: ReqPayResult,
+    /// Rejection reason (only set when result is Rejected).
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub reason: Option<Reason>,
+}
+
+/// The result of a ReqPay request.
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize)]
 pub enum ReqPayResult {
     Ack,
     Rejected,
 }
 
-/// The type of callback received.
+impl ReqPayResponse {
+    pub fn ack() -> Self {
+        Self { result: ReqPayResult::Ack, reason: None }
+    }
+
+    pub fn rejected(reason: Reason) -> Self {
+        Self { result: ReqPayResult::Rejected, reason: Some(reason) }
+    }
+}
+
+// ============================================================================
+// AwaitCallback Event
+// ============================================================================
+
+/// Request for AwaitCallback: wait for callback from switch.
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize)]
-pub enum CallbackType {
-    Success,
-    Failed,
+pub struct AwaitCallbackRequest {
+    pub timeout_secs: u64,
+}
+
+/// Response from AwaitCallback: callback result.
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize)]
+pub struct AwaitCallbackResponse {
+    pub result: CallbackResult,
+}
+
+/// The result of waiting for a callback.
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize)]
+pub enum CallbackResult {
+    Success { debit_ref: Ref, credit_ref: Ref },
+    Failed { reason: Reason },
     Deemed,
     Timeout,
 }
 
-/// The type of deemed resolution.
+impl AwaitCallbackResponse {
+    pub fn success(debit_ref: Ref, credit_ref: Ref) -> Self {
+        Self { result: CallbackResult::Success { debit_ref, credit_ref } }
+    }
+
+    pub fn failed(reason: Reason) -> Self {
+        Self { result: CallbackResult::Failed { reason } }
+    }
+
+    pub fn deemed() -> Self {
+        Self { result: CallbackResult::Deemed }
+    }
+
+    pub fn timeout() -> Self {
+        Self { result: CallbackResult::Timeout }
+    }
+}
+
+// ============================================================================
+// AwaitDeemedResolution Event
+// ============================================================================
+
+/// Request for AwaitDeemedResolution: wait for deemed transaction resolution.
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize)]
-pub enum ResolutionType {
-    DeemedSuccess,
-    DeemedFailed,
+pub struct AwaitDeemedResolutionRequest {
+    pub deadline_days: u64,
+}
+
+/// Response from AwaitDeemedResolution: resolution result.
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize)]
+pub struct AwaitDeemedResolutionResponse {
+    pub result: DeemedResolutionResult,
+}
+
+/// The result of deemed resolution.
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize)]
+pub enum DeemedResolutionResult {
+    Success { credit_ref: Ref },
+    Failed,
     DeadlineExpired,
 }
 
-/// The request data: what we asked for in an event.
-///
-/// Fields are optional because different event types use different subsets.
+impl AwaitDeemedResolutionResponse {
+    pub fn success(credit_ref: Ref) -> Self {
+        Self { result: DeemedResolutionResult::Success { credit_ref } }
+    }
+
+    pub fn failed() -> Self {
+        Self { result: DeemedResolutionResult::Failed }
+    }
+
+    pub fn deadline_expired() -> Self {
+        Self { result: DeemedResolutionResult::DeadlineExpired }
+    }
+}
+
+// ============================================================================
+// AwaitForcedReversal Event
+// ============================================================================
+
+/// Request for AwaitForcedReversal: wait for forced reversal to complete.
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize)]
+pub struct AwaitForcedReversalRequest {
+    pub deadline_days: u64,
+}
+
+/// Response from AwaitForcedReversal: acknowledgment.
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Default, Serialize, Deserialize)]
-pub struct EventRequest {
-    #[serde(skip_serializing_if = "Option::is_none")]
-    pub event_type: Option<EventType>,
-    #[serde(skip_serializing_if = "Option::is_none")]
-    pub payer: Option<PayerId>,
-    #[serde(skip_serializing_if = "Option::is_none")]
-    pub intent: Option<ValidIntent>,
-    #[serde(skip_serializing_if = "Option::is_none")]
-    pub reason: Option<Reason>,
-    #[serde(skip_serializing_if = "Option::is_none")]
-    pub status: Option<Status>,
-    #[serde(skip_serializing_if = "Option::is_none")]
-    pub req: Option<PayRequest>,
-    #[serde(skip_serializing_if = "Option::is_none")]
-    pub timeout_secs: Option<u64>,
-    #[serde(skip_serializing_if = "Option::is_none")]
-    pub deadline_days: Option<u64>,
-}
-
-impl EventRequest {
-    /// Create a request for GetPaymentIntent.
-    pub fn get_payment_intent(payer: PayerId) -> Self {
-        Self {
-            event_type: Some(EventType::GetPaymentIntent),
-            payer: Some(payer),
-            ..Default::default()
-        }
-    }
-
-    /// Create a request for ShowError.
-    pub fn show_error(reason: Reason) -> Self {
-        Self {
-            event_type: Some(EventType::ShowError),
-            reason: Some(reason),
-            ..Default::default()
-        }
-    }
-
-    /// Create a request for CollectMpin.
-    pub fn collect_mpin(payer: PayerId, intent: ValidIntent) -> Self {
-        Self {
-            event_type: Some(EventType::CollectMpin),
-            payer: Some(payer),
-            intent: Some(intent),
-            ..Default::default()
-        }
-    }
-
-    /// Create a request for Notify.
-    pub fn notify(status: Status) -> Self {
-        Self {
-            event_type: Some(EventType::Notify),
-            status: Some(status),
-            ..Default::default()
-        }
-    }
-
-    /// Create a request for ReqPay.
-    pub fn req_pay(req: PayRequest) -> Self {
-        Self {
-            event_type: Some(EventType::ReqPay),
-            req: Some(req),
-            ..Default::default()
-        }
-    }
-
-    /// Create a request for AwaitCallback.
-    pub fn await_callback(timeout_secs: u64) -> Self {
-        Self {
-            event_type: Some(EventType::AwaitCallback),
-            timeout_secs: Some(timeout_secs),
-            ..Default::default()
-        }
-    }
-
-    /// Create a request for AwaitDeemedResolution.
-    pub fn await_deemed_resolution(deadline_days: u64) -> Self {
-        Self {
-            event_type: Some(EventType::AwaitDeemedResolution),
-            deadline_days: Some(deadline_days),
-            ..Default::default()
-        }
-    }
-
-    /// Create a request for AwaitForcedReversal.
-    pub fn await_forced_reversal(deadline_days: u64) -> Self {
-        Self {
-            event_type: Some(EventType::AwaitForcedReversal),
-            deadline_days: Some(deadline_days),
-            ..Default::default()
-        }
-    }
-}
-
-/// The response data: what we received from an event.
-///
-/// Fields are optional because different event types produce different responses.
-#[derive(Debug, Clone, Copy, PartialEq, Eq, Default, Serialize, Deserialize)]
-pub struct EventResponse {
-    /// Raw intent returned from GetPaymentIntent.
-    #[serde(skip_serializing_if = "Option::is_none")]
-    pub raw_intent: Option<RawIntent>,
-    /// Mpin returned from CollectMpin.
-    #[serde(skip_serializing_if = "Option::is_none")]
-    pub mpin: Option<Mpin>,
-    /// Result type from ReqPay.
-    #[serde(skip_serializing_if = "Option::is_none")]
-    pub req_pay_result: Option<ReqPayResult>,
-    /// Rejection reason from ReqPay (when rejected).
-    #[serde(skip_serializing_if = "Option::is_none")]
-    pub reject_reason: Option<Reason>,
-    /// Callback type from AwaitCallback.
-    #[serde(skip_serializing_if = "Option::is_none")]
-    pub callback_type: Option<CallbackType>,
-    /// Debit ref from callback (on success).
-    #[serde(skip_serializing_if = "Option::is_none")]
-    pub debit_ref: Option<Ref>,
-    /// Credit ref from callback or resolution (on success).
-    #[serde(skip_serializing_if = "Option::is_none")]
-    pub credit_ref: Option<Ref>,
-    /// Failure reason from callback (on failure).
-    #[serde(skip_serializing_if = "Option::is_none")]
-    pub callback_reason: Option<Reason>,
-    /// Resolution type from AwaitDeemedResolution.
-    #[serde(skip_serializing_if = "Option::is_none")]
-    pub resolution_type: Option<ResolutionType>,
-}
-
-impl EventResponse {
-    /// Create a response for a raw intent.
-    pub fn intent(raw_intent: RawIntent) -> Self {
-        Self {
-            raw_intent: Some(raw_intent),
-            ..Default::default()
-        }
-    }
-
-    /// Create a response for mpin.
-    pub fn mpin(mpin: Mpin) -> Self {
-        Self {
-            mpin: Some(mpin),
-            ..Default::default()
-        }
-    }
-
-    /// Create a response for a unit event (ShowError, Notify).
-    pub fn unit() -> Self {
-        Self::default()
-    }
-
-    /// Create a response for ReqPay Ack.
-    pub fn req_pay_ack() -> Self {
-        Self {
-            req_pay_result: Some(ReqPayResult::Ack),
-            ..Default::default()
-        }
-    }
-
-    /// Create a response for ReqPay Rejected.
-    pub fn req_pay_rejected(reason: Reason) -> Self {
-        Self {
-            req_pay_result: Some(ReqPayResult::Rejected),
-            reject_reason: Some(reason),
-            ..Default::default()
-        }
-    }
-
-    /// Create a response for Callback Success.
-    pub fn callback_success(debit_ref: Ref, credit_ref: Ref) -> Self {
-        Self {
-            callback_type: Some(CallbackType::Success),
-            debit_ref: Some(debit_ref),
-            credit_ref: Some(credit_ref),
-            ..Default::default()
-        }
-    }
-
-    /// Create a response for Callback Failed.
-    pub fn callback_failed(reason: Reason) -> Self {
-        Self {
-            callback_type: Some(CallbackType::Failed),
-            callback_reason: Some(reason),
-            ..Default::default()
-        }
-    }
-
-    /// Create a response for Callback Deemed.
-    pub fn callback_deemed() -> Self {
-        Self {
-            callback_type: Some(CallbackType::Deemed),
-            ..Default::default()
-        }
-    }
-
-    /// Create a response for Callback Timeout.
-    pub fn callback_timeout() -> Self {
-        Self {
-            callback_type: Some(CallbackType::Timeout),
-            ..Default::default()
-        }
-    }
-
-    /// Create a response for DeemedSuccess resolution.
-    pub fn resolution_success(credit_ref: Ref) -> Self {
-        Self {
-            resolution_type: Some(ResolutionType::DeemedSuccess),
-            credit_ref: Some(credit_ref),
-            ..Default::default()
-        }
-    }
-
-    /// Create a response for DeemedFailed resolution.
-    pub fn resolution_failed() -> Self {
-        Self {
-            resolution_type: Some(ResolutionType::DeemedFailed),
-            ..Default::default()
-        }
-    }
-
-    /// Create a response for DeadlineExpired resolution.
-    pub fn resolution_deadline_expired() -> Self {
-        Self {
-            resolution_type: Some(ResolutionType::DeadlineExpired),
-            ..Default::default()
-        }
-    }
-}
+pub struct AwaitForcedReversalResponse;

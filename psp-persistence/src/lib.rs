@@ -18,8 +18,17 @@ pub use context::{ContextData, FlowContext, Segment};
 pub use decompose::decompose;
 pub use entity::EntitySnapshot;
 pub use event_data::{
-    CallbackType, EventData, EventRequest, EventResponse, EventStatus, EventType, ReqPayResult,
-    ResolutionType,
+    // Generic storage types
+    EventData, EventStatus, EventType,
+    // Per-event request/response types
+    GetPaymentIntentRequest, GetPaymentIntentResponse,
+    ShowErrorRequest, ShowErrorResponse,
+    CollectMpinRequest, CollectMpinResponse,
+    NotifyRequest, NotifyResponse,
+    ReqPayRequest, ReqPayResponse, ReqPayResult,
+    AwaitCallbackRequest, AwaitCallbackResponse, CallbackResult,
+    AwaitDeemedResolutionRequest, AwaitDeemedResolutionResponse, DeemedResolutionResult,
+    AwaitForcedReversalRequest, AwaitForcedReversalResponse,
 };
 pub use reconstruct::{reconstruct, ReconstructError};
 pub use store::FlowStore;
