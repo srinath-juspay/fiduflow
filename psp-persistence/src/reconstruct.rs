@@ -14,7 +14,9 @@ use crate::entity::*;
 use crate::event_data::*;
 use psp_flow::entity::*;
 use psp_flow::machine::*;
+use psp_flow::persist;
 use psp_flow::values::*;
+use serde_json;
 
 /// Errors that can occur during reconstruction.
 #[derive(Debug, Clone, PartialEq, Eq)]
@@ -22,14 +24,15 @@ pub enum ReconstructError {
     /// No current (non-processed) event found in the event list.
     NoCurrentEvent,
     /// The entity state and event type combination is invalid.
-    InvalidStateEventCombination {
-        state: &'static str,
-        event_type: EventType,
-    },
+    InvalidStateEventCombination { state: &'static str, event_type: String },
     /// Missing required data from event history.
     MissingEventData(&'static str),
     /// The entity snapshot is a terminal state (should use Stored::Finished).
     TerminalState,
+    /// Failed to parse event type.
+    InvalidEventType(String),
+    /// Failed to deserialize JSON.
+    JsonError(String),
 }
 
 /// Find the current (non-processed) event from the event list.
@@ -37,54 +40,42 @@ fn find_current_event(events: &[EventData]) -> Option<&EventData> {
     events.iter().find(|e| e.is_current())
 }
 
-/// Extract a validated intent from event history.
-/// The intent comes from a previous GetPaymentIntent response.
-#[allow(dead_code)]
-fn extract_intent_from_events(events: &[EventData]) -> Result<ValidIntent, ReconstructError> {
-    for event in events {
-        if event.event_type == EventType::GetPaymentIntent {
-            if let Some(resp) = &event.response {
-                if let Some(raw) = resp.raw_intent {
-                    // We trust stored intents are valid (they were validated before storage)
-                    return Ok(ValidIntent {
-                        payee: raw.payee,
-                        amount: raw.amount,
-                    });
-                }
-            }
-        }
-        // Also check CollectMpin request which stores the intent
-        if event.event_type == EventType::CollectMpin {
-            if let Some(intent) = event.request.intent {
-                return Ok(intent);
-            }
-        }
+/// Parse event type from string.
+fn parse_event_type(s: &str) -> Result<EventType, ReconstructError> {
+    match s {
+        "GetPaymentIntent" => Ok(EventType::GetPaymentIntent),
+        "ShowError" => Ok(EventType::ShowError),
+        "CollectMpin" => Ok(EventType::CollectMpin),
+        "Notify" => Ok(EventType::Notify),
+        "ReqPay" => Ok(EventType::ReqPay),
+        "AwaitCallback" => Ok(EventType::AwaitCallback),
+        "AwaitDeemedResolution" => Ok(EventType::AwaitDeemedResolution),
+        "AwaitForcedReversal" => Ok(EventType::AwaitForcedReversal),
+        other => Err(ReconstructError::InvalidEventType(other.to_string())),
     }
-    Err(ReconstructError::MissingEventData("intent"))
 }
 
-/// Extract reason from the current event request.
-fn extract_reason_from_request(event: &EventData) -> Result<Reason, ReconstructError> {
-    event
-        .request
-        .reason
-        .ok_or(ReconstructError::MissingEventData("reason"))
+/// Deserialize EventRequest from JSON.
+fn parse_request(event: &EventData) -> Result<persist::EventRequest, ReconstructError> {
+    serde_json::from_value(event.request.clone())
+        .map_err(|e| ReconstructError::JsonError(e.to_string()))
 }
 
-/// Extract reason from status in request.
-fn extract_reason_from_status(event: &EventData) -> Result<Reason, ReconstructError> {
-    match event.request.status {
-        Some(Status::Failed(reason)) => Ok(reason),
-        _ => Err(ReconstructError::MissingEventData("reason from status")),
+/// Deserialize EventResponse from JSON.
+fn parse_response(event: &EventData) -> Result<Option<persist::EventResponse>, ReconstructError> {
+    match &event.response {
+        Some(json) => serde_json::from_value(json.clone())
+            .map(Some)
+            .map_err(|e| ReconstructError::JsonError(e.to_string())),
+        None => Ok(None),
     }
 }
 
 /// Extract refs from event history for NotifySuccess.
 fn extract_success_refs(events: &[EventData]) -> Result<(Ref, Ref), ReconstructError> {
-    // Look for AwaitCallback response with success
     for event in events {
-        if event.event_type == EventType::AwaitCallback {
-            if let Some(resp) = &event.response {
+        if event.event_type == "AwaitCallback" {
+            if let Some(resp) = parse_response(event)? {
                 if resp.callback_type == Some(CallbackType::Success) {
                     let debit_ref = resp
                         .debit_ref
@@ -100,30 +91,11 @@ fn extract_success_refs(events: &[EventData]) -> Result<(Ref, Ref), ReconstructE
     Err(ReconstructError::MissingEventData("success refs"))
 }
 
-/// Extract failure reason from event history for NotifyFailed.
-#[allow(dead_code)]
-fn extract_failure_reason(events: &[EventData]) -> Result<Reason, ReconstructError> {
-    // Look for AwaitCallback response with failure
-    for event in events {
-        if event.event_type == EventType::AwaitCallback {
-            if let Some(resp) = &event.response {
-                if resp.callback_type == Some(CallbackType::Failed) {
-                    return resp
-                        .callback_reason
-                        .ok_or(ReconstructError::MissingEventData("callback_reason"));
-                }
-            }
-        }
-    }
-    Err(ReconstructError::MissingEventData("failure reason"))
-}
-
 /// Extract credit_ref from event history for NotifyConfirmed.
 fn extract_confirmed_credit_ref(events: &[EventData]) -> Result<Ref, ReconstructError> {
-    // Look for AwaitDeemedResolution response with success
     for event in events {
-        if event.event_type == EventType::AwaitDeemedResolution {
-            if let Some(resp) = &event.response {
+        if event.event_type == "AwaitDeemedResolution" {
+            if let Some(resp) = parse_response(event)? {
                 if resp.resolution_type == Some(ResolutionType::DeemedSuccess) {
                     return resp
                         .credit_ref
@@ -155,8 +127,10 @@ pub fn reconstruct(
     }
 
     let current = find_current_event(events).ok_or(ReconstructError::NoCurrentEvent)?;
+    let event_type = parse_event_type(&current.event_type)?;
+    let request = parse_request(current)?;
 
-    match (entity, current.event_type) {
+    match (entity, event_type) {
         // Initiated state combinations
         (EntitySnapshot::Initiated(e), EventType::GetPaymentIntent) => {
             let txn = Txn {
@@ -171,7 +145,9 @@ pub fn reconstruct(
                 id: e.id,
                 data: Initiated { payer: e.payer },
             };
-            let reason = extract_reason_from_request(current)?;
+            let reason = request
+                .reason
+                .ok_or(ReconstructError::MissingEventData("reason"))?;
             Ok(PayerPay::AtShowError(AtShowError { txn, reason }))
         }
 
@@ -180,10 +156,9 @@ pub fn reconstruct(
                 id: e.id,
                 data: Initiated { payer: e.payer },
             };
-            let intent = current
-                .request
+            let intent = request
                 .intent
-                .ok_or(ReconstructError::MissingEventData("intent in request"))?;
+                .ok_or(ReconstructError::MissingEventData("intent"))?;
             Ok(PayerPay::AtCollectMpin(AtCollectMpin { txn, intent }))
         }
 
@@ -211,7 +186,10 @@ pub fn reconstruct(
                 },
             };
             let req = txn.build_req_pay();
-            let reason = extract_reason_from_status(current)?;
+            let reason = match request.status {
+                Some(Status::Failed(r)) => r,
+                _ => return Err(ReconstructError::MissingEventData("reason from status")),
+            };
             Ok(PayerPay::AtNotifyRejected(AtNotifyRejected {
                 txn,
                 req,
@@ -233,8 +211,7 @@ pub fn reconstruct(
                 id: e.id,
                 data: Submitted { req: e.req },
             };
-            // Determine which Notify variant based on the status in request
-            match current.request.status {
+            match request.status {
                 Some(Status::Successful) => {
                     let (debit_ref, credit_ref) = extract_success_refs(events)?;
                     Ok(PayerPay::AtNotifySuccess(AtNotifySuccess {
@@ -267,8 +244,7 @@ pub fn reconstruct(
                 id: e.id,
                 data: Deemed { req: e.req },
             };
-            // Determine which Notify variant based on the status in request
-            match current.request.status {
+            match request.status {
                 Some(Status::Confirmed) => {
                     let credit_ref = extract_confirmed_credit_ref(events)?;
                     Ok(PayerPay::AtNotifyConfirmed(AtNotifyConfirmed {
@@ -291,8 +267,7 @@ pub fn reconstruct(
                 id: e.id,
                 data: ReversalPending { req: e.req },
             };
-            // Determine which Notify variant based on the status in request
-            match current.request.status {
+            match request.status {
                 Some(Status::ReversalInProgress) => {
                     Ok(PayerPay::AtNotifyReversalStart(AtNotifyReversalStart {
                         txn,
@@ -318,7 +293,7 @@ pub fn reconstruct(
         // Invalid combinations
         _ => Err(ReconstructError::InvalidStateEventCombination {
             state: entity.state_name(),
-            event_type: current.event_type,
+            event_type: current.event_type.clone(),
         }),
     }
 }
@@ -431,13 +406,15 @@ mod tests {
         let (entity, ctx, notify_event) = decompose(&bookmark, 1);
 
         // Create the prerequisite AwaitCallback event with response
+        let callback_req = psp_flow::persist::EventRequest::await_callback(CALLBACK_TIMEOUT_SECS);
         let mut callback_event = EventData::new(
             0,
-            EventType::AwaitCallback,
-            EventRequest::await_callback(CALLBACK_TIMEOUT_SECS),
+            EventType::AwaitCallback.as_str(),
+            serde_json::to_value(&callback_req).unwrap(),
         );
         callback_event.status = EventStatus::Processed;
-        callback_event.response = Some(EventResponse::callback_success(Ref(1001), Ref(2002)));
+        let callback_resp = psp_flow::persist::EventResponse::callback_success(Ref(1001), Ref(2002));
+        callback_event.response = Some(serde_json::to_value(&callback_resp).unwrap());
 
         let reconstructed = reconstruct(&entity, &ctx, &[callback_event, notify_event]).unwrap();
         assert_eq!(reconstructed, bookmark);
@@ -477,13 +454,16 @@ mod tests {
         // AtNotifyConfirmed requires previous AwaitDeemedResolution with success response
         let (entity, ctx, notify_event) = decompose(&bookmark, 1);
 
+        let resolution_req =
+            psp_flow::persist::EventRequest::await_deemed_resolution(DEEMED_DEADLINE_DAYS);
         let mut resolution_event = EventData::new(
             0,
-            EventType::AwaitDeemedResolution,
-            EventRequest::await_deemed_resolution(DEEMED_DEADLINE_DAYS),
+            EventType::AwaitDeemedResolution.as_str(),
+            serde_json::to_value(&resolution_req).unwrap(),
         );
         resolution_event.status = EventStatus::Processed;
-        resolution_event.response = Some(EventResponse::resolution_success(Ref(3003)));
+        let resolution_resp = psp_flow::persist::EventResponse::resolution_success(Ref(3003));
+        resolution_event.response = Some(serde_json::to_value(&resolution_resp).unwrap());
 
         let reconstructed =
             reconstruct(&entity, &ctx, &[resolution_event, notify_event]).unwrap();
@@ -538,10 +518,11 @@ mod tests {
             credit_ref: Ref(2),
         });
         let ctx = FlowContext::default();
+        let req = psp_flow::persist::EventRequest::notify(Status::Successful);
         let event = EventData::new(
             0,
-            EventType::Notify,
-            EventRequest::notify(Status::Successful),
+            EventType::Notify.as_str(),
+            serde_json::to_value(&req).unwrap(),
         );
 
         let result = reconstruct(&entity, &ctx, &[event]);
@@ -557,10 +538,11 @@ mod tests {
         let ctx = FlowContext::default();
 
         // All events are processed
+        let req = psp_flow::persist::EventRequest::get_payment_intent(PayerId(42));
         let mut event = EventData::new(
             0,
-            EventType::GetPaymentIntent,
-            EventRequest::get_payment_intent(PayerId(42)),
+            EventType::GetPaymentIntent.as_str(),
+            serde_json::to_value(&req).unwrap(),
         );
         event.status = EventStatus::Processed;
 
@@ -577,10 +559,11 @@ mod tests {
         let ctx = FlowContext::default();
 
         // AwaitCallback is not valid for Initiated state
+        let req = psp_flow::persist::EventRequest::await_callback(30);
         let event = EventData::new(
             0,
-            EventType::AwaitCallback,
-            EventRequest::await_callback(30),
+            EventType::AwaitCallback.as_str(),
+            serde_json::to_value(&req).unwrap(),
         );
 
         let result = reconstruct(&entity, &ctx, &[event]);

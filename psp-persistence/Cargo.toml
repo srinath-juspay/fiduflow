@@ -5,10 +5,11 @@ version.workspace = true
 description = "Pure persistence bridge layer: typed decompose/reconstruct and storage traits"
 
 [features]
-default = ["runtime"]
-runtime = ["psp_flow/runtime"]
+default = []
 
 [dependencies]
-psp_flow = { path = "../psp-flow", features = ["runtime"] }
+psp_flow = { path = "../psp-flow", features = ["persist"] }
+driver-framework = { path = "../driver-framework", features = ["persist"] }
+serde_json = "1.0"
 
 [dev-dependencies]

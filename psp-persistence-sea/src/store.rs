@@ -9,13 +9,14 @@ use chrono::Utc;
 use psp_flow::values::TxnId;
 use psp_persistence::context::{FlowContext, Segment};
 use psp_persistence::entity::EntitySnapshot;
-use psp_persistence::event_data::{EventData, EventResponse, EventStatus};
+use psp_persistence::{EventData, EventStatus};
 use psp_persistence::store::FlowStore;
 use sea_orm::ActiveValue::Set;
 use sea_orm::{
     ActiveModelTrait, ColumnTrait, DatabaseConnection, DbErr, EntityTrait, QueryFilter,
     QueryOrder,
 };
+use serde_json::Value as JsonValue;
 use thiserror::Error;
 
 /// Errors from the SeaORM store.
@@ -72,7 +73,7 @@ impl SeaFlowStore {
             )
             .await?;
 
-        // Create events table
+        // Create events table (with JSON columns for request/response)
         self.db
             .execute_unprepared(
                 r#"
@@ -82,27 +83,8 @@ impl SeaFlowStore {
                 seq INTEGER NOT NULL,
                 event_type TEXT NOT NULL,
                 status TEXT NOT NULL,
-                req_payer INTEGER,
-                req_intent_payee INTEGER,
-                req_intent_amount INTEGER,
-                req_reason TEXT,
-                req_status TEXT,
-                req_pay_payer INTEGER,
-                req_pay_payee INTEGER,
-                req_pay_amount INTEGER,
-                req_pay_mpin INTEGER,
-                req_timeout_secs INTEGER,
-                req_deadline_days INTEGER,
-                resp_raw_payee INTEGER,
-                resp_raw_amount INTEGER,
-                resp_mpin INTEGER,
-                resp_req_pay_result TEXT,
-                resp_reject_reason TEXT,
-                resp_callback_type TEXT,
-                resp_debit_ref INTEGER,
-                resp_credit_ref INTEGER,
-                resp_callback_reason TEXT,
-                resp_resolution_type TEXT,
+                request TEXT NOT NULL,
+                response TEXT,
                 created_at TEXT NOT NULL,
                 sent_at TEXT,
                 received_at TEXT,
@@ -217,7 +199,7 @@ impl FlowStore for SeaFlowStore {
         &self,
         id: TxnId,
         seq: i32,
-        response: &EventResponse,
+        response: JsonValue,
     ) -> Result<(), Self::Error> {
         let event = events::Entity::find()
             .filter(events::Column::TxnId.eq(id.0 as i64))
@@ -233,37 +215,8 @@ impl FlowStore for SeaFlowStore {
         update.status = Set(EventStatus::Received.as_str().to_string());
         update.received_at = Set(Some(now));
 
-        // Set response fields
-        if let Some(raw) = response.raw_intent {
-            update.resp_raw_payee = Set(Some(raw.payee.0 as i64));
-            update.resp_raw_amount = Set(Some(raw.amount.0 as i64));
-        }
-        if let Some(mpin) = response.mpin {
-            update.resp_mpin = Set(Some(mpin.0 as i64));
-        }
-        if let Some(result) = response.req_pay_result {
-            update.resp_req_pay_result = Set(Some(result.as_str().to_string()));
-        }
-        if let Some(reason) = response.reject_reason {
-            update.resp_reject_reason =
-                Set(Some(crate::conversions::reason_to_str(reason).to_string()));
-        }
-        if let Some(cb_type) = response.callback_type {
-            update.resp_callback_type = Set(Some(cb_type.as_str().to_string()));
-        }
-        if let Some(debit_ref) = response.debit_ref {
-            update.resp_debit_ref = Set(Some(debit_ref.0 as i64));
-        }
-        if let Some(credit_ref) = response.credit_ref {
-            update.resp_credit_ref = Set(Some(credit_ref.0 as i64));
-        }
-        if let Some(reason) = response.callback_reason {
-            update.resp_callback_reason =
-                Set(Some(crate::conversions::reason_to_str(reason).to_string()));
-        }
-        if let Some(res_type) = response.resolution_type {
-            update.resp_resolution_type = Set(Some(res_type.as_str().to_string()));
-        }
+        // Store response as JSON string
+        update.response = Set(Some(serde_json::to_string(&response).unwrap()));
 
         update.update(&self.db).await?;
         Ok(())
@@ -354,9 +307,9 @@ impl FlowStore for SeaFlowStore {
 #[cfg(all(test, feature = "sqlite"))]
 mod tests {
     use super::*;
+    use psp_flow::persist::EventRequest;
     use psp_flow::values::*;
     use psp_persistence::entity::InitiatedEntity;
-    use psp_persistence::event_data::{EventRequest, EventType};
     use sea_orm::Database;
 
     async fn setup_test_db() -> SeaFlowStore {
@@ -393,17 +346,18 @@ mod tests {
         });
         store.save_entity(id, &entity).await.unwrap();
 
+        let request = EventRequest::get_payment_intent(PayerId(42));
         let event = EventData::new(
             0,
-            EventType::GetPaymentIntent,
-            EventRequest::get_payment_intent(PayerId(42)),
+            "GetPaymentIntent",
+            serde_json::to_value(&request).unwrap(),
         );
         store.insert_event(id, &event).await.unwrap();
 
         let events = store.load_events(id).await.unwrap();
         assert_eq!(events.len(), 1);
         assert_eq!(events[0].seq, 0);
-        assert_eq!(events[0].event_type, EventType::GetPaymentIntent);
+        assert_eq!(events[0].event_type, "GetPaymentIntent");
     }
 
     #[tokio::test]

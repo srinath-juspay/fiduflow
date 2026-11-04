@@ -11,11 +11,12 @@ postgres = ["sea-orm/sqlx-postgres"]
 
 [dependencies]
 psp-persistence = { path = "../psp-persistence" }
-psp_flow = { path = "../psp-flow", features = ["runtime"] }
+psp_flow = { path = "../psp-flow", features = ["persist"] }
 
 # Use postgres by default to avoid conflict with rusqlite in psp-app
 # Note: Using v0.12 because v1.1 has hard dependencies on sqlx-sqlite
 sea-orm = { version = "0.12", default-features = false, features = ["runtime-tokio-rustls", "macros", "with-chrono"] }
+serde_json = "1.0"
 tokio = { version = "1", features = ["rt-multi-thread", "macros"] }
 thiserror = "2"
 chrono = "0.4"

@@ -9,8 +9,9 @@
 //! * `entity`  — the `UpiTxn` entity: one struct per state, `Txn<S>` typestate, transitions.
 //! * `events`  — interactions, each co-defined with its response type.
 //! * `machine` — the flow: one typed wait point per `Vis` node with `event`/`resume`, plus the boundary `event`/`deliver`.
+//! * `persist` — (feature: persist) typed event request/response for storage.
 
-#![no_std]
+#![cfg_attr(not(feature = "persist"), no_std)]
 #![forbid(unsafe_code)]
 
 pub mod values;
@@ -18,7 +19,13 @@ pub mod entity;
 pub mod events;
 pub mod machine;
 
+#[cfg(feature = "persist")]
+pub mod persist;
+
 pub use values::*;
 pub use entity::*;
 pub use events::*;
 pub use machine::*;
+
+#[cfg(feature = "persist")]
+pub use persist::*;

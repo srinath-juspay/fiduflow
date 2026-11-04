@@ -276,6 +276,10 @@ checksum = "1aaf95b3e5c8f23aa320147307562d361db0ae0d51242340f558153b4eb2439b"
 [[package]]
 name = "driver-framework"
 version = "0.1.0"
+dependencies = [
+ "serde",
+ "serde_json",
+]
 
 [[package]]
 name = "either"
@@ -1070,7 +1074,9 @@ dependencies = [
 name = "psp-persistence"
 version = "0.1.0"
 dependencies = [
+ "driver-framework",
  "psp_flow",
+ "serde_json",
 ]
 
 [[package]]
@@ -1081,6 +1087,7 @@ dependencies = [
  "psp-persistence",
  "psp_flow",
  "sea-orm",
+ "serde_json",
  "thiserror 2.0.21",
  "tokio",
 ]
@@ -1090,6 +1097,8 @@ name = "psp_flow"
 version = "0.1.0"
 dependencies = [
  "driver-framework",
+ "serde",
+ "serde_json",
 ]
 
 [[package]]
