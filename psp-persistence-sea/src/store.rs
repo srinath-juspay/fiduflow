@@ -17,6 +17,7 @@ use sea_orm::{
     QueryOrder,
 };
 use thiserror::Error;
+use uuid::Uuid;
 
 /// Errors from the SeaORM store.
 #[derive(Debug, Error)]
@@ -25,8 +26,8 @@ pub enum StoreError {
     Db(#[from] DbErr),
     #[error("Conversion error: {0}")]
     Conversion(#[from] crate::conversions::ConversionError),
-    #[error("Message not found: txn={0}, seq={1}")]
-    MessageNotFound(u64, i32),
+    #[error("Message not found: {0}")]
+    MessageNotFound(String),
 }
 
 /// SeaORM implementation of FlowStore.
@@ -73,19 +74,20 @@ impl SeaFlowStore {
             .await?;
 
         // Create events table with classification columns
+        // id is a GUID (TEXT), assigned by store on insert
+        // Messages are ordered by created_at timestamp
         self.db
             .execute_unprepared(
                 r#"
             CREATE TABLE IF NOT EXISTS events (
-                id INTEGER PRIMARY KEY AUTOINCREMENT,
+                id TEXT PRIMARY KEY,
                 txn_id INTEGER NOT NULL,
-                seq INTEGER NOT NULL,
                 -- Classification
                 source TEXT NOT NULL,
                 target TEXT NOT NULL,
                 method TEXT NOT NULL,
                 -- Correlation
-                in_response_to INTEGER,
+                in_response_to TEXT,
                 expects_async INTEGER NOT NULL DEFAULT 0,
                 -- Payload
                 message_type TEXT NOT NULL,
@@ -119,7 +121,7 @@ impl SeaFlowStore {
             .await?;
         self.db
             .execute_unprepared(
-                "CREATE INDEX IF NOT EXISTS idx_events_txn_seq ON events(txn_id, seq)",
+                "CREATE INDEX IF NOT EXISTS idx_events_created_at ON events(txn_id, created_at)",
             )
             .await?;
         self.db
@@ -166,24 +168,28 @@ impl FlowStore for SeaFlowStore {
         }
     }
 
-    async fn insert_message(&self, id: TxnId, message: &MessageRecord) -> Result<i32, Self::Error> {
-        let model = message_to_model(id, message);
+    async fn insert_message(
+        &self,
+        txn_id: TxnId,
+        message: MessageRecord,
+    ) -> Result<MessageRecord, Self::Error> {
+        // Generate a GUID for the new message
+        let id = Uuid::new_v4().to_string();
+        let model = message_to_model(txn_id, id.clone(), &message);
         model.insert(&self.db).await?;
-        Ok(message.seq)
+        // Return the message with the assigned ID
+        Ok(message.with_id(id))
     }
 
     async fn update_message_status(
         &self,
-        id: TxnId,
-        seq: i32,
+        message_id: &str,
         status: MessageStatus,
     ) -> Result<(), Self::Error> {
-        let record = events::Entity::find()
-            .filter(events::Column::TxnId.eq(id.0 as i64))
-            .filter(events::Column::Seq.eq(seq))
+        let record = events::Entity::find_by_id(message_id.to_string())
             .one(&self.db)
             .await?
-            .ok_or(StoreError::MessageNotFound(id.0, seq))?;
+            .ok_or_else(|| StoreError::MessageNotFound(message_id.to_string()))?;
 
         let mut update: events::ActiveModel = record.into();
         update.status = Set(status.as_str().to_string());
@@ -197,10 +203,10 @@ impl FlowStore for SeaFlowStore {
         Ok(())
     }
 
-    async fn load_messages(&self, id: TxnId) -> Result<Vec<MessageRecord>, Self::Error> {
+    async fn load_messages(&self, txn_id: TxnId) -> Result<Vec<MessageRecord>, Self::Error> {
         let models = events::Entity::find()
-            .filter(events::Column::TxnId.eq(id.0 as i64))
-            .order_by_asc(events::Column::Seq)
+            .filter(events::Column::TxnId.eq(txn_id.0 as i64))
+            .order_by_asc(events::Column::CreatedAt)
             .all(&self.db)
             .await?;
 
@@ -210,11 +216,11 @@ impl FlowStore for SeaFlowStore {
             .collect()
     }
 
-    async fn pending_message(&self, id: TxnId) -> Result<Option<MessageRecord>, Self::Error> {
+    async fn pending_message(&self, txn_id: TxnId) -> Result<Option<MessageRecord>, Self::Error> {
         let model = events::Entity::find()
-            .filter(events::Column::TxnId.eq(id.0 as i64))
+            .filter(events::Column::TxnId.eq(txn_id.0 as i64))
             .filter(events::Column::Status.eq(MessageStatus::Pending.as_str()))
-            .order_by_asc(events::Column::Seq)
+            .order_by_asc(events::Column::CreatedAt)
             .one(&self.db)
             .await?;
 
@@ -313,32 +319,74 @@ mod tests {
     #[tokio::test]
     async fn test_insert_load_message() {
         let store = setup_test_db().await;
-        let id = TxnId(1);
+        let txn_id = TxnId(1);
 
         // First save the entity (foreign key constraint)
         let entity = EntitySnapshot::Initiated(InitiatedEntity {
-            id,
+            id: txn_id,
             payer: PayerId(42),
         });
-        store.save_entity(id, &entity).await.unwrap();
+        store.save_entity(txn_id, &entity).await.unwrap();
 
         let cmd = UserCommand::GetPaymentIntent { payer: PayerId(42) };
         // Request to user, expects async response
         let message = MessageRecord::request_to_user_async(
-            0,
             cmd.event_type(),
             serde_json::to_value(&cmd).unwrap(),
         );
-        store.insert_message(id, &message).await.unwrap();
+        let inserted = store.insert_message(txn_id, message).await.unwrap();
 
-        let messages = store.load_messages(id).await.unwrap();
+        // Verify message got an ID assigned
+        assert!(inserted.id.is_some());
+
+        let messages = store.load_messages(txn_id).await.unwrap();
         assert_eq!(messages.len(), 1);
-        assert_eq!(messages[0].seq, 0);
+        assert!(messages[0].id.is_some());
         assert_eq!(messages[0].message_type, "GetPaymentIntent");
         assert_eq!(messages[0].source, Actor::ThisSystem);
         assert_eq!(messages[0].target, Actor::User);
         assert_eq!(messages[0].method, Method::Request);
         assert!(messages[0].expects_async);
+    }
+
+    #[tokio::test]
+    async fn test_update_message_status() {
+        let store = setup_test_db().await;
+        let txn_id = TxnId(1);
+
+        // First save the entity (foreign key constraint)
+        let entity = EntitySnapshot::Initiated(InitiatedEntity {
+            id: txn_id,
+            payer: PayerId(42),
+        });
+        store.save_entity(txn_id, &entity).await.unwrap();
+
+        let cmd = UserCommand::GetPaymentIntent { payer: PayerId(42) };
+        let message = MessageRecord::request_to_user_async(
+            cmd.event_type(),
+            serde_json::to_value(&cmd).unwrap(),
+        );
+        let inserted = store.insert_message(txn_id, message).await.unwrap();
+        let message_id = inserted.id();
+
+        // Verify initial status is Pending
+        let pending = store.pending_message(txn_id).await.unwrap();
+        assert!(pending.is_some());
+        assert_eq!(pending.unwrap().status, MessageStatus::Pending);
+
+        // Update status to Completed
+        store
+            .update_message_status(message_id, MessageStatus::Completed)
+            .await
+            .unwrap();
+
+        // Verify no pending messages
+        let pending = store.pending_message(txn_id).await.unwrap();
+        assert!(pending.is_none());
+
+        // Verify message status is now Completed
+        let messages = store.load_messages(txn_id).await.unwrap();
+        assert_eq!(messages[0].status, MessageStatus::Completed);
     }
 
     #[tokio::test]
@@ -383,7 +431,7 @@ mod tests {
 
         // Load and verify
         let loaded = store.load_context(id).await.unwrap();
-        assert_eq!(loaded.is_high_value, true);
+        assert!(loaded.is_high_value);
 
         // Update context with is_high_value = false
         let ctx2 = FlowContext::with_high_value(false);
@@ -391,7 +439,7 @@ mod tests {
 
         // Load and verify update
         let loaded2 = store.load_context(id).await.unwrap();
-        assert_eq!(loaded2.is_high_value, false);
+        assert!(!loaded2.is_high_value);
     }
 
     #[tokio::test]
@@ -402,6 +450,6 @@ mod tests {
         // Load context for non-existent transaction
         let ctx = store.load_context(id).await.unwrap();
         assert_eq!(ctx, FlowContext::default());
-        assert_eq!(ctx.is_high_value, false);
+        assert!(!ctx.is_high_value);
     }
 }

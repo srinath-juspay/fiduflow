@@ -7,8 +7,12 @@
 //! - Method: Request | Ack | AsyncResponse | Notify
 //!
 //! Correlation:
-//! - Ack and AsyncResponse have `in_response_to` pointing to the Request's seq
+//! - Ack and AsyncResponse have `in_response_to` pointing to the Request's id
 //! - Request has `expects_async` indicating if AsyncResponse is expected after Ack
+//!
+//! ID and ordering:
+//! - `id` is a GUID assigned by the store on insert
+//! - Ordering is by `created_at` timestamp (managed by store)
 
 use serde::{Deserialize, Serialize};
 use serde_json::Value as JsonValue;
@@ -107,10 +111,15 @@ impl Method {
 ///
 /// This structure stores message metadata with classification
 /// (source, target, method) along with the message body as JSON.
+///
+/// The `id` field is assigned by the store on insert. When creating
+/// a new message, use the constructors which set `id` to `None`.
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
 pub struct MessageRecord {
-    /// Sequence number within the transaction (0-indexed).
-    pub seq: i32,
+    /// Unique identifier (GUID). Assigned by store on insert.
+    /// None when creating a new message, Some after stored.
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub id: Option<String>,
 
     // === Classification ===
     /// Source actor: who sent this message.
@@ -121,10 +130,10 @@ pub struct MessageRecord {
     pub method: Method,
 
     // === Correlation ===
-    /// For Ack/AsyncResponse: the seq of the Request this responds to.
+    /// For Ack/AsyncResponse: the id of the Request this responds to.
     /// None for Request and Notify.
     #[serde(skip_serializing_if = "Option::is_none")]
-    pub in_response_to: Option<i32>,
+    pub in_response_to: Option<String>,
     /// For Request: whether an AsyncResponse is expected after Ack.
     /// Ignored for other methods.
     #[serde(default)]
@@ -146,7 +155,6 @@ impl MessageRecord {
     ///
     /// - `expects_async`: true if AsyncResponse is expected after Ack
     pub fn request(
-        seq: i32,
         source: Actor,
         target: Actor,
         expects_async: bool,
@@ -154,7 +162,7 @@ impl MessageRecord {
         message_body: JsonValue,
     ) -> Self {
         Self {
-            seq,
+            id: None,
             source,
             target,
             method: Method::Request,
@@ -168,21 +176,20 @@ impl MessageRecord {
 
     /// Create an Ack message (synchronous acknowledgment).
     ///
-    /// - `in_response_to`: seq of the Request being acknowledged
+    /// - `in_response_to`: id of the Request being acknowledged
     pub fn ack(
-        seq: i32,
         source: Actor,
         target: Actor,
-        in_response_to: i32,
+        in_response_to: impl Into<String>,
         message_type: impl Into<String>,
         message_body: JsonValue,
     ) -> Self {
         Self {
-            seq,
+            id: None,
             source,
             target,
             method: Method::Ack,
-            in_response_to: Some(in_response_to),
+            in_response_to: Some(in_response_to.into()),
             expects_async: false,
             message_type: message_type.into(),
             message_body,
@@ -192,21 +199,20 @@ impl MessageRecord {
 
     /// Create an AsyncResponse message (delayed response).
     ///
-    /// - `in_response_to`: seq of the Request being responded to
+    /// - `in_response_to`: id of the Request being responded to
     pub fn async_response(
-        seq: i32,
         source: Actor,
         target: Actor,
-        in_response_to: i32,
+        in_response_to: impl Into<String>,
         message_type: impl Into<String>,
         message_body: JsonValue,
     ) -> Self {
         Self {
-            seq,
+            id: None,
             source,
             target,
             method: Method::AsyncResponse,
-            in_response_to: Some(in_response_to),
+            in_response_to: Some(in_response_to.into()),
             expects_async: false,
             message_type: message_type.into(),
             message_body,
@@ -216,14 +222,13 @@ impl MessageRecord {
 
     /// Create a Notify message (one-way notification).
     pub fn notify(
-        seq: i32,
         source: Actor,
         target: Actor,
         message_type: impl Into<String>,
         message_body: JsonValue,
     ) -> Self {
         Self {
-            seq,
+            id: None,
             source,
             target,
             method: Method::Notify,
@@ -238,43 +243,47 @@ impl MessageRecord {
     // === Convenience constructors for common patterns ===
 
     /// Request from ThisSystem to User (ack only).
-    pub fn request_to_user(seq: i32, message_type: impl Into<String>, body: JsonValue) -> Self {
-        Self::request(seq, Actor::ThisSystem, Actor::User, false, message_type, body)
+    pub fn request_to_user(message_type: impl Into<String>, body: JsonValue) -> Self {
+        Self::request(Actor::ThisSystem, Actor::User, false, message_type, body)
     }
 
     /// Request from ThisSystem to User (expects async response).
-    pub fn request_to_user_async(seq: i32, message_type: impl Into<String>, body: JsonValue) -> Self {
-        Self::request(seq, Actor::ThisSystem, Actor::User, true, message_type, body)
+    pub fn request_to_user_async(message_type: impl Into<String>, body: JsonValue) -> Self {
+        Self::request(Actor::ThisSystem, Actor::User, true, message_type, body)
     }
 
     /// Request from ThisSystem to ExternalSystem (ack only).
-    pub fn request_to_system(seq: i32, message_type: impl Into<String>, body: JsonValue) -> Self {
-        Self::request(seq, Actor::ThisSystem, Actor::ExternalSystem, false, message_type, body)
+    pub fn request_to_system(message_type: impl Into<String>, body: JsonValue) -> Self {
+        Self::request(Actor::ThisSystem, Actor::ExternalSystem, false, message_type, body)
     }
 
     /// Request from ThisSystem to ExternalSystem (expects async response).
-    pub fn request_to_system_async(seq: i32, message_type: impl Into<String>, body: JsonValue) -> Self {
-        Self::request(seq, Actor::ThisSystem, Actor::ExternalSystem, true, message_type, body)
+    pub fn request_to_system_async(message_type: impl Into<String>, body: JsonValue) -> Self {
+        Self::request(Actor::ThisSystem, Actor::ExternalSystem, true, message_type, body)
     }
 
     /// AsyncResponse from ExternalSystem to ThisSystem.
     pub fn async_response_from_system(
-        seq: i32,
-        in_response_to: i32,
+        in_response_to: impl Into<String>,
         message_type: impl Into<String>,
         body: JsonValue,
     ) -> Self {
-        Self::async_response(seq, Actor::ExternalSystem, Actor::ThisSystem, in_response_to, message_type, body)
+        Self::async_response(Actor::ExternalSystem, Actor::ThisSystem, in_response_to, message_type, body)
     }
 
     /// AsyncResponse from User to ThisSystem.
     pub fn async_response_from_user(
-        seq: i32,
-        in_response_to: i32,
+        in_response_to: impl Into<String>,
         message_type: impl Into<String>,
         body: JsonValue,
     ) -> Self {
-        Self::async_response(seq, Actor::User, Actor::ThisSystem, in_response_to, message_type, body)
+        Self::async_response(Actor::User, Actor::ThisSystem, in_response_to, message_type, body)
+    }
+
+    /// Set the id (called by store after insert).
+    pub fn with_id(mut self, id: impl Into<String>) -> Self {
+        self.id = Some(id.into());
+        self
     }
 
     /// Mark the message as completed.
@@ -290,5 +299,10 @@ impl MessageRecord {
     /// Check if this is a Request that expects an async response.
     pub fn expects_async_response(&self) -> bool {
         self.method == Method::Request && self.expects_async
+    }
+
+    /// Get the id, panics if not set.
+    pub fn id(&self) -> &str {
+        self.id.as_ref().expect("message id not set")
     }
 }

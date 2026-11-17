@@ -226,18 +226,19 @@ fn extract_pay_request(model: &upi_txn::Model) -> Result<PayRequest, ConversionE
 
 // ---- MessageRecord <-> events::Model ----
 
-pub fn message_to_model(txn_id: TxnId, message: &MessageRecord) -> events::ActiveModel {
+/// Convert a MessageRecord to an ActiveModel for insertion.
+/// The `id` field should be provided (generated GUID).
+pub fn message_to_model(txn_id: TxnId, id: String, message: &MessageRecord) -> events::ActiveModel {
     let now = Utc::now();
     events::ActiveModel {
-        id: Set(Default::default()), // auto-generated
+        id: Set(id),
         txn_id: Set(txn_id.0 as i64),
-        seq: Set(message.seq),
         // Classification columns
         source: Set(message.source.as_str().to_string()),
         target: Set(message.target.as_str().to_string()),
         method: Set(message.method.as_str().to_string()),
         // Correlation
-        in_response_to: Set(message.in_response_to),
+        in_response_to: Set(message.in_response_to.clone()),
         expects_async: Set(message.expects_async),
         // Payload
         message_type: Set(message.message_type.clone()),
@@ -263,11 +264,11 @@ pub fn model_to_message(model: &events::Model) -> Result<MessageRecord, Conversi
     let message_body: serde_json::Value = serde_json::from_str(&model.message_body)?;
 
     Ok(MessageRecord {
-        seq: model.seq,
+        id: Some(model.id.clone()),
         source,
         target,
         method,
-        in_response_to: model.in_response_to,
+        in_response_to: model.in_response_to.clone(),
         expects_async: model.expects_async,
         message_type: model.message_type.clone(),
         message_body,

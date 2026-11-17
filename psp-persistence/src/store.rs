@@ -36,30 +36,32 @@ pub trait FlowStore: Send + Sync {
     // ---- Message operations ----
 
     /// Insert a new message record.
+    ///
+    /// The store assigns a GUID to the message and returns it.
+    /// Messages are ordered by their `created_at` timestamp.
     fn insert_message(
         &self,
-        id: TxnId,
-        message: &MessageRecord,
-    ) -> impl Future<Output = Result<i32, Self::Error>> + Send;
+        txn_id: TxnId,
+        message: MessageRecord,
+    ) -> impl Future<Output = Result<MessageRecord, Self::Error>> + Send;
 
-    /// Update the status of a message.
+    /// Update the status of a message by its ID.
     fn update_message_status(
         &self,
-        id: TxnId,
-        seq: i32,
+        message_id: &str,
         status: MessageStatus,
     ) -> impl Future<Output = Result<(), Self::Error>> + Send;
 
-    /// Load all messages for a transaction.
+    /// Load all messages for a transaction, ordered by created_at.
     fn load_messages(
         &self,
-        id: TxnId,
+        txn_id: TxnId,
     ) -> impl Future<Output = Result<Vec<MessageRecord>, Self::Error>> + Send;
 
     /// Load the pending message for a transaction.
     fn pending_message(
         &self,
-        id: TxnId,
+        txn_id: TxnId,
     ) -> impl Future<Output = Result<Option<MessageRecord>, Self::Error>> + Send;
 
     // ---- Context operations ----
@@ -115,8 +117,8 @@ pub trait FlowStoreExt: FlowStore {
         id: TxnId,
         entity: &EntitySnapshot,
         ctx: &FlowContext,
-        message: &MessageRecord,
-    ) -> impl Future<Output = Result<i32, Self::Error>> + Send {
+        message: MessageRecord,
+    ) -> impl Future<Output = Result<MessageRecord, Self::Error>> + Send {
         async move {
             self.save_entity(id, entity).await?;
             self.save_context(id, ctx).await?;

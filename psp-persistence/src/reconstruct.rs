@@ -275,8 +275,8 @@ mod tests {
 
     /// Round-trip test helper: decompose then reconstruct and verify equality.
     fn round_trip(bookmark: PayerPay) {
-        let (entity, ctx, event) = decompose(&bookmark, 0);
-        let reconstructed = reconstruct(&entity, &ctx, &[event]).unwrap();
+        let (entity, ctx, message) = decompose(&bookmark);
+        let reconstructed = reconstruct(&entity, &ctx, &[message]).unwrap();
         assert_eq!(reconstructed, bookmark);
     }
 
@@ -337,22 +337,21 @@ mod tests {
             credit_ref: Ref(2002),
         });
 
-        let (entity, ctx, notify_event) = decompose(&bookmark, 1);
+        let (entity, ctx, notify_message) = decompose(&bookmark);
 
-        // Create prerequisite callback event with success response
+        // Create prerequisite callback message with success response
         let callback = SystemAsyncCallback::PaymentSuccess {
             debit_ref: Ref(1001),
             credit_ref: Ref(2002),
         };
-        let mut callback_event = MessageRecord::async_response_from_system(
-            0,
-            0, // in_response_to
+        let mut callback_message = MessageRecord::async_response_from_system(
+            "prev-request-id",
             "PaymentSuccess",
             serde_json::to_value(&callback).unwrap(),
         );
-        callback_event.mark_completed();
+        callback_message.mark_completed();
 
-        let reconstructed = reconstruct(&entity, &ctx, &[callback_event, notify_event]).unwrap();
+        let reconstructed = reconstruct(&entity, &ctx, &[callback_message, notify_message]).unwrap();
         assert_eq!(reconstructed, bookmark);
     }
 
@@ -385,18 +384,17 @@ mod tests {
             credit_ref: Ref(3003),
         });
 
-        let (entity, ctx, notify_event) = decompose(&bookmark, 1);
+        let (entity, ctx, notify_message) = decompose(&bookmark);
 
         let callback = SystemAsyncCallback::DeemedSuccess { credit_ref: Ref(3003) };
-        let mut callback_event = MessageRecord::async_response_from_system(
-            0,
-            0, // in_response_to
+        let mut callback_message = MessageRecord::async_response_from_system(
+            "prev-request-id",
             "DeemedSuccess",
             serde_json::to_value(&callback).unwrap(),
         );
-        callback_event.mark_completed();
+        callback_message.mark_completed();
 
-        let reconstructed = reconstruct(&entity, &ctx, &[callback_event, notify_event]).unwrap();
+        let reconstructed = reconstruct(&entity, &ctx, &[callback_message, notify_message]).unwrap();
         assert_eq!(reconstructed, bookmark);
     }
 
@@ -438,13 +436,12 @@ mod tests {
             credit_ref: Ref(2),
         });
         let ctx = FlowContext::default();
-        let event = MessageRecord::request_to_user(
-            0,
+        let message = MessageRecord::request_to_user(
             "Notify",
             serde_json::to_value(&UserCommand::Notify { status: Status::Successful }).unwrap(),
         );
 
-        let result = reconstruct(&entity, &ctx, &[event]);
+        let result = reconstruct(&entity, &ctx, &[message]);
         assert_eq!(result, Err(ReconstructError::TerminalState));
     }
 
@@ -456,14 +453,13 @@ mod tests {
         });
         let ctx = FlowContext::default();
 
-        let mut event = MessageRecord::request_to_user_async(
-            0,
+        let mut message = MessageRecord::request_to_user_async(
             "GetPaymentIntent",
             serde_json::to_value(&UserCommand::GetPaymentIntent { payer: PayerId(42) }).unwrap(),
         );
-        event.mark_completed();
+        message.mark_completed();
 
-        let result = reconstruct(&entity, &ctx, &[event]);
+        let result = reconstruct(&entity, &ctx, &[message]);
         assert_eq!(result, Err(ReconstructError::NoPendingMessage));
     }
 
@@ -475,18 +471,21 @@ mod tests {
         });
         let ctx = FlowContext::default();
 
-        // Create an event that doesn't match the Initiated state
+        // Create a message that doesn't match the Initiated state
         // AwaitCallback is only valid in Submitted state
-        let event = MessageRecord::async_response(
-            0,
-            Actor::ExternalSystem,
-            Actor::ThisSystem,
-            0, // in_response_to
-            "AwaitCallback",
-            serde_json::json!({}),
-        );
+        let message = MessageRecord {
+            id: None,
+            source: Actor::ExternalSystem,
+            target: Actor::ThisSystem,
+            method: Method::AsyncResponse,
+            in_response_to: Some("some-id".to_string()),
+            expects_async: false,
+            message_type: "AwaitCallback".to_string(),
+            message_body: serde_json::json!({}),
+            status: MessageStatus::Pending,
+        };
 
-        let result = reconstruct(&entity, &ctx, &[event]);
+        let result = reconstruct(&entity, &ctx, &[message]);
         assert!(matches!(
             result,
             Err(ReconstructError::InvalidStateMessageCombination { .. })

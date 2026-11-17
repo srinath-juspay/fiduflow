@@ -2,6 +2,7 @@
 //!
 //! This table stores all flow messages with classification metadata.
 //! Message body is stored as JSON for flexibility.
+//! Messages are ordered by created_at timestamp.
 
 use chrono::{DateTime, Utc};
 use sea_orm::entity::prelude::*;
@@ -11,14 +12,12 @@ pub type DateTimeUtc = DateTime<Utc>;
 #[derive(Clone, Debug, PartialEq, Eq, DeriveEntityModel)]
 #[sea_orm(table_name = "events")]
 pub struct Model {
-    #[sea_orm(primary_key)]
-    pub id: i64,
+    /// Unique identifier (GUID).
+    #[sea_orm(primary_key, auto_increment = false)]
+    pub id: String,
 
     /// Foreign key to upi_txn.
     pub txn_id: i64,
-
-    /// Sequence number within the transaction.
-    pub seq: i32,
 
     // === Classification ===
     /// Source actor: 'User' | 'ThisSystem' | 'ExternalSystem'
@@ -29,8 +28,8 @@ pub struct Model {
     pub method: String,
 
     // === Correlation ===
-    /// For Ack/AsyncResponse: seq of the Request this responds to.
-    pub in_response_to: Option<i32>,
+    /// For Ack/AsyncResponse: id of the Request this responds to.
+    pub in_response_to: Option<String>,
     /// For Request: whether AsyncResponse is expected after Ack.
     pub expects_async: bool,
 
