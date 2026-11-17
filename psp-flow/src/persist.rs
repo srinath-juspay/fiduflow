@@ -2,53 +2,332 @@
 //!
 //! This module provides:
 //! - `FlowContext`: Cross-segment locals (e.g., is_high_value)
-//! - Per-event request/response types that serialize directly to JSON
+//! - `FlowEvent`: Categorized events (direction, target/source, initiated_by, timing)
 //!
-//! Each event type has its own request and response struct with exactly
-//! the fields it needs. These serialize via serde to JSON for storage.
+//! Event classification (re-exported from driver-framework):
+//! - Direction: Out (we send) | In (we receive)
+//! - Target/Source: User | System
+//! - Initiated by: Us | Them
+//! - Timing: Command | Request | Notification | SyncAck | AsyncResponse | AsyncCallback
 
 use crate::values::*;
 use serde::{Deserialize, Serialize};
+
+// Re-export classification types from driver-framework for consistent usage
+pub use driver_framework::{Direction, EventData, EventStatus, InitiatedBy, TargetSource, Timing};
 
 // ============================================================================
 // Flow Context (cross-segment locals)
 // ============================================================================
 
 /// Cross-segment local variables for the PSP flow.
-///
-/// These values are computed in one segment and used in later segments
-/// for decision-making (e.g., SLA handling, timeout policies).
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Default, Serialize, Deserialize)]
 pub struct FlowContext {
     /// High-value transaction flag.
-    ///
     /// Set in Authenticated segment when `amount > HIGH_VALUE_THRESHOLD`.
-    /// Used in Submitted/Deemed segments for different SLA handling
-    /// (longer timeouts, priority processing).
     #[serde(default)]
     pub is_high_value: bool,
 }
 
 impl FlowContext {
-    /// Create a new empty context (all defaults).
     pub fn new() -> Self {
         Self::default()
     }
 
-    /// Create a context with the high-value flag set.
     pub fn with_high_value(is_high_value: bool) -> Self {
         Self { is_high_value }
     }
 }
 
 /// Threshold for high-value transactions (in smallest currency unit).
-pub const HIGH_VALUE_THRESHOLD: u64 = 100_000; // e.g., ₹1,00,000
+pub const HIGH_VALUE_THRESHOLD: u64 = 100_000;
 
 // ============================================================================
-// Event Type
+// Flow Event (top-level categorized enum)
 // ============================================================================
 
-/// The type of event being tracked.
+/// All flow events - categorized by direction, target/source, initiator, timing.
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
+pub enum FlowEvent {
+    // ======= OUTGOING (we send) =======
+
+    /// Command to user (expects sync ack, may have async response)
+    UserCommand(UserCommand),
+    /// Command to system (expects sync ack, may have async callback)
+    SystemCommand(SystemCommand),
+
+    // ======= INCOMING (they initiate) =======
+
+    /// User initiates request (not a response to our command)
+    UserRequest(UserRequest),
+    /// System sends notification (unsolicited)
+    SystemNotification(SystemNotification),
+
+    // ======= INCOMING (response to our command) =======
+
+    /// Sync ack from user (command accepted/rejected)
+    UserSyncAck(UserSyncAck),
+    /// Async response from user (actual data/completion)
+    UserAsyncResponse(UserAsyncResponse),
+    /// Sync ack from system (command accepted/rejected)
+    SystemSyncAck(SystemSyncAck),
+    /// Async callback from system (result of async processing)
+    SystemAsyncCallback(SystemAsyncCallback),
+}
+
+impl FlowEvent {
+    /// Get the direction of this event.
+    pub fn direction(&self) -> Direction {
+        match self {
+            FlowEvent::UserCommand(_) | FlowEvent::SystemCommand(_) => Direction::Out,
+            _ => Direction::In,
+        }
+    }
+
+    /// Get the target (outgoing) or source (incoming).
+    pub fn target_source(&self) -> TargetSource {
+        match self {
+            FlowEvent::UserCommand(_)
+            | FlowEvent::UserRequest(_)
+            | FlowEvent::UserSyncAck(_)
+            | FlowEvent::UserAsyncResponse(_) => TargetSource::User,
+            FlowEvent::SystemCommand(_)
+            | FlowEvent::SystemNotification(_)
+            | FlowEvent::SystemSyncAck(_)
+            | FlowEvent::SystemAsyncCallback(_) => TargetSource::System,
+        }
+    }
+
+    /// Get who initiated this event.
+    pub fn initiated_by(&self) -> InitiatedBy {
+        match self {
+            FlowEvent::UserCommand(_) | FlowEvent::SystemCommand(_) => InitiatedBy::Us,
+            FlowEvent::UserRequest(_) | FlowEvent::SystemNotification(_) => InitiatedBy::Them,
+            FlowEvent::UserSyncAck(_)
+            | FlowEvent::UserAsyncResponse(_)
+            | FlowEvent::SystemSyncAck(_)
+            | FlowEvent::SystemAsyncCallback(_) => InitiatedBy::Them,
+        }
+    }
+
+    /// Get the timing/nature of this event.
+    pub fn timing(&self) -> Timing {
+        match self {
+            FlowEvent::UserCommand(_) | FlowEvent::SystemCommand(_) => Timing::Command,
+            FlowEvent::UserRequest(_) => Timing::Request,
+            FlowEvent::SystemNotification(_) => Timing::Notification,
+            FlowEvent::UserSyncAck(_) | FlowEvent::SystemSyncAck(_) => Timing::SyncAck,
+            FlowEvent::UserAsyncResponse(_) => Timing::AsyncResponse,
+            FlowEvent::SystemAsyncCallback(_) => Timing::AsyncCallback,
+        }
+    }
+
+    /// Get the event type name as a string.
+    pub fn event_type(&self) -> &'static str {
+        match self {
+            FlowEvent::UserCommand(c) => c.event_type(),
+            FlowEvent::SystemCommand(c) => c.event_type(),
+            FlowEvent::UserRequest(r) => r.event_type(),
+            FlowEvent::SystemNotification(n) => n.event_type(),
+            FlowEvent::UserSyncAck(a) => a.event_type(),
+            FlowEvent::UserAsyncResponse(r) => r.event_type(),
+            FlowEvent::SystemSyncAck(a) => a.event_type(),
+            FlowEvent::SystemAsyncCallback(c) => c.event_type(),
+        }
+    }
+}
+
+// ============================================================================
+// OUTGOING: Commands we send
+// ============================================================================
+
+/// Commands we send to the user.
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize)]
+pub enum UserCommand {
+    /// Ask user for payment intent (async response expected)
+    GetPaymentIntent { payer: PayerId },
+    /// Ask user for MPIN (async response expected)
+    CollectMpin { payer: PayerId, intent: ValidIntent },
+    /// Show error to user (sync ack expected)
+    ShowError { reason: Reason },
+    /// Notify user of status (sync ack expected)
+    Notify { status: Status },
+}
+
+impl UserCommand {
+    pub fn event_type(&self) -> &'static str {
+        match self {
+            UserCommand::GetPaymentIntent { .. } => "GetPaymentIntent",
+            UserCommand::CollectMpin { .. } => "CollectMpin",
+            UserCommand::ShowError { .. } => "ShowError",
+            UserCommand::Notify { .. } => "Notify",
+        }
+    }
+}
+
+/// Commands we send to external systems.
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize)]
+pub enum SystemCommand {
+    /// Send payment request to switch (sync ack + async callback expected)
+    ReqPay { req: PayRequest },
+}
+
+impl SystemCommand {
+    pub fn event_type(&self) -> &'static str {
+        match self {
+            SystemCommand::ReqPay { .. } => "ReqPay",
+        }
+    }
+}
+
+// ============================================================================
+// INCOMING: User-initiated (not response to our command)
+// ============================================================================
+
+/// Requests initiated by the user (not in response to our command).
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize)]
+pub enum UserRequest {
+    /// User initiates a payment
+    InitiatePayment { payer: PayerId },
+    /// User cancels the transaction
+    Cancel { reason: Reason },
+    /// User requests status check
+    StatusCheck,
+}
+
+impl UserRequest {
+    pub fn event_type(&self) -> &'static str {
+        match self {
+            UserRequest::InitiatePayment { .. } => "InitiatePayment",
+            UserRequest::Cancel { .. } => "Cancel",
+            UserRequest::StatusCheck => "StatusCheck",
+        }
+    }
+}
+
+/// Unsolicited notifications from external systems.
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize)]
+pub enum SystemNotification {
+    /// Fraud alert from risk system
+    FraudAlert,
+    /// Account freeze notification
+    AccountFreeze,
+}
+
+impl SystemNotification {
+    pub fn event_type(&self) -> &'static str {
+        match self {
+            SystemNotification::FraudAlert => "FraudAlert",
+            SystemNotification::AccountFreeze => "AccountFreeze",
+        }
+    }
+}
+
+// ============================================================================
+// INCOMING: Responses to our commands
+// ============================================================================
+
+/// Sync ack from user (immediate response to our command).
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize)]
+pub enum UserSyncAck {
+    /// Command accepted by user/client
+    Accepted,
+    /// Command rejected by user/client
+    Rejected { reason: Reason },
+}
+
+impl UserSyncAck {
+    pub fn event_type(&self) -> &'static str {
+        match self {
+            UserSyncAck::Accepted => "UserAccepted",
+            UserSyncAck::Rejected { .. } => "UserRejected",
+        }
+    }
+}
+
+/// Async response from user (delayed response with data).
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize)]
+pub enum UserAsyncResponse {
+    /// User provided payment intent
+    PaymentIntent { intent: RawIntent },
+    /// User provided MPIN
+    Mpin { mpin: Mpin },
+    /// User acknowledged error display
+    ErrorAck,
+    /// User acknowledged notification
+    NotifyAck,
+}
+
+impl UserAsyncResponse {
+    pub fn event_type(&self) -> &'static str {
+        match self {
+            UserAsyncResponse::PaymentIntent { .. } => "PaymentIntent",
+            UserAsyncResponse::Mpin { .. } => "Mpin",
+            UserAsyncResponse::ErrorAck => "ErrorAck",
+            UserAsyncResponse::NotifyAck => "NotifyAck",
+        }
+    }
+}
+
+/// Sync ack from system (immediate response to our command).
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize)]
+pub enum SystemSyncAck {
+    /// ReqPay accepted by switch
+    ReqPayAccepted,
+    /// ReqPay rejected by switch
+    ReqPayRejected { reason: Reason },
+}
+
+impl SystemSyncAck {
+    pub fn event_type(&self) -> &'static str {
+        match self {
+            SystemSyncAck::ReqPayAccepted => "ReqPayAccepted",
+            SystemSyncAck::ReqPayRejected { .. } => "ReqPayRejected",
+        }
+    }
+}
+
+/// Async callback from system (result of async processing).
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize)]
+pub enum SystemAsyncCallback {
+    /// Payment succeeded
+    PaymentSuccess { debit_ref: Ref, credit_ref: Ref },
+    /// Payment failed
+    PaymentFailed { reason: Reason },
+    /// Payment deemed (uncertain state)
+    PaymentDeemed,
+    /// Callback timeout
+    PaymentTimeout,
+    /// Deemed resolution: success
+    DeemedSuccess { credit_ref: Ref },
+    /// Deemed resolution: failed
+    DeemedFailed,
+    /// Deemed resolution: deadline expired
+    DeemedExpired,
+    /// Forced reversal complete
+    ReversalComplete,
+}
+
+impl SystemAsyncCallback {
+    pub fn event_type(&self) -> &'static str {
+        match self {
+            SystemAsyncCallback::PaymentSuccess { .. } => "PaymentSuccess",
+            SystemAsyncCallback::PaymentFailed { .. } => "PaymentFailed",
+            SystemAsyncCallback::PaymentDeemed => "PaymentDeemed",
+            SystemAsyncCallback::PaymentTimeout => "PaymentTimeout",
+            SystemAsyncCallback::DeemedSuccess { .. } => "DeemedSuccess",
+            SystemAsyncCallback::DeemedFailed => "DeemedFailed",
+            SystemAsyncCallback::DeemedExpired => "DeemedExpired",
+            SystemAsyncCallback::ReversalComplete => "ReversalComplete",
+        }
+    }
+}
+
+// ============================================================================
+// Legacy type aliases for compatibility (deprecated)
+// ============================================================================
+
+/// Event type enum (for backward compatibility with storage).
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, Serialize, Deserialize)]
 pub enum EventType {
     GetPaymentIntent,
@@ -62,7 +341,6 @@ pub enum EventType {
 }
 
 impl EventType {
-    /// Get the event type name as a string.
     pub fn as_str(&self) -> &'static str {
         match self {
             EventType::GetPaymentIntent => "GetPaymentIntent",
@@ -76,7 +354,6 @@ impl EventType {
         }
     }
 
-    /// Parse event type from string.
     pub fn from_str(s: &str) -> Option<Self> {
         match s {
             "GetPaymentIntent" => Some(EventType::GetPaymentIntent),
@@ -91,195 +368,3 @@ impl EventType {
         }
     }
 }
-
-// ============================================================================
-// GetPaymentIntent Event
-// ============================================================================
-
-/// Request for GetPaymentIntent: ask user for payment intent.
-#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize)]
-pub struct GetPaymentIntentRequest {
-    pub payer: PayerId,
-}
-
-/// Response from GetPaymentIntent: raw intent from user.
-#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize)]
-pub struct GetPaymentIntentResponse {
-    pub intent: RawIntent,
-}
-
-// ============================================================================
-// ShowError Event
-// ============================================================================
-
-/// Request for ShowError: display error to user.
-#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize)]
-pub struct ShowErrorRequest {
-    pub reason: Reason,
-}
-
-/// Response from ShowError: acknowledgment (unit response).
-#[derive(Debug, Clone, Copy, PartialEq, Eq, Default, Serialize, Deserialize)]
-pub struct ShowErrorResponse;
-
-// ============================================================================
-// CollectMpin Event
-// ============================================================================
-
-/// Request for CollectMpin: ask user for MPIN.
-#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize)]
-pub struct CollectMpinRequest {
-    pub payer: PayerId,
-    pub intent: ValidIntent,
-}
-
-/// Response from CollectMpin: user's MPIN.
-#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize)]
-pub struct CollectMpinResponse {
-    pub mpin: Mpin,
-}
-
-// ============================================================================
-// Notify Event
-// ============================================================================
-
-/// Request for Notify: inform user of status.
-#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize)]
-pub struct NotifyRequest {
-    pub status: Status,
-}
-
-/// Response from Notify: acknowledgment (unit response).
-#[derive(Debug, Clone, Copy, PartialEq, Eq, Default, Serialize, Deserialize)]
-pub struct NotifyResponse;
-
-// ============================================================================
-// ReqPay Event
-// ============================================================================
-
-/// Request for ReqPay: send payment request to switch.
-#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize)]
-pub struct ReqPayRequest {
-    pub req: PayRequest,
-}
-
-/// Response from ReqPay: ack or rejection.
-#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize)]
-pub struct ReqPayResponse {
-    pub result: ReqPayResult,
-    /// Rejection reason (only set when result is Rejected).
-    #[serde(skip_serializing_if = "Option::is_none")]
-    pub reason: Option<Reason>,
-}
-
-/// The result of a ReqPay request.
-#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize)]
-pub enum ReqPayResult {
-    Ack,
-    Rejected,
-}
-
-impl ReqPayResponse {
-    pub fn ack() -> Self {
-        Self { result: ReqPayResult::Ack, reason: None }
-    }
-
-    pub fn rejected(reason: Reason) -> Self {
-        Self { result: ReqPayResult::Rejected, reason: Some(reason) }
-    }
-}
-
-// ============================================================================
-// AwaitCallback Event
-// ============================================================================
-
-/// Request for AwaitCallback: wait for callback from switch.
-#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize)]
-pub struct AwaitCallbackRequest {
-    pub timeout_secs: u64,
-}
-
-/// Response from AwaitCallback: callback result.
-#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize)]
-pub struct AwaitCallbackResponse {
-    pub result: CallbackResult,
-}
-
-/// The result of waiting for a callback.
-#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize)]
-pub enum CallbackResult {
-    Success { debit_ref: Ref, credit_ref: Ref },
-    Failed { reason: Reason },
-    Deemed,
-    Timeout,
-}
-
-impl AwaitCallbackResponse {
-    pub fn success(debit_ref: Ref, credit_ref: Ref) -> Self {
-        Self { result: CallbackResult::Success { debit_ref, credit_ref } }
-    }
-
-    pub fn failed(reason: Reason) -> Self {
-        Self { result: CallbackResult::Failed { reason } }
-    }
-
-    pub fn deemed() -> Self {
-        Self { result: CallbackResult::Deemed }
-    }
-
-    pub fn timeout() -> Self {
-        Self { result: CallbackResult::Timeout }
-    }
-}
-
-// ============================================================================
-// AwaitDeemedResolution Event
-// ============================================================================
-
-/// Request for AwaitDeemedResolution: wait for deemed transaction resolution.
-#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize)]
-pub struct AwaitDeemedResolutionRequest {
-    pub deadline_days: u64,
-}
-
-/// Response from AwaitDeemedResolution: resolution result.
-#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize)]
-pub struct AwaitDeemedResolutionResponse {
-    pub result: DeemedResolutionResult,
-}
-
-/// The result of deemed resolution.
-#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize)]
-pub enum DeemedResolutionResult {
-    Success { credit_ref: Ref },
-    Failed,
-    DeadlineExpired,
-}
-
-impl AwaitDeemedResolutionResponse {
-    pub fn success(credit_ref: Ref) -> Self {
-        Self { result: DeemedResolutionResult::Success { credit_ref } }
-    }
-
-    pub fn failed() -> Self {
-        Self { result: DeemedResolutionResult::Failed }
-    }
-
-    pub fn deadline_expired() -> Self {
-        Self { result: DeemedResolutionResult::DeadlineExpired }
-    }
-}
-
-// ============================================================================
-// AwaitForcedReversal Event
-// ============================================================================
-
-/// Request for AwaitForcedReversal: wait for forced reversal to complete.
-#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize)]
-pub struct AwaitForcedReversalRequest {
-    pub deadline_days: u64,
-}
-
-/// Response from AwaitForcedReversal: acknowledgment.
-#[derive(Debug, Clone, Copy, PartialEq, Eq, Default, Serialize, Deserialize)]
-pub struct AwaitForcedReversalResponse;

@@ -1,28 +1,22 @@
 //! Event data types re-exported from psp_flow and driver_framework.
 //!
-//! - Per-event request/response types from `psp_flow::persist`
-//! - Generic `EventData`/`EventStatus` from `driver_framework::event`
+//! - Categorized `FlowEvent` types from `psp_flow::persist`
+//! - Generic `EventData` with classification from `driver_framework::event`
 
-// Re-export per-event typed request/response structures from psp_flow
+// Re-export categorized event types from psp_flow
 pub use psp_flow::persist::{
-    // Event type enum
+    // Top-level event enum
+    FlowEvent,
+    // Classification enums (also in driver_framework)
+    Direction, InitiatedBy, TargetSource, Timing,
+    // Outgoing commands
+    UserCommand, SystemCommand,
+    // Incoming user-initiated
+    UserRequest, SystemNotification,
+    // Incoming responses
+    UserSyncAck, UserAsyncResponse, SystemSyncAck, SystemAsyncCallback,
+    // Legacy EventType for compatibility
     EventType,
-    // GetPaymentIntent
-    GetPaymentIntentRequest, GetPaymentIntentResponse,
-    // ShowError
-    ShowErrorRequest, ShowErrorResponse,
-    // CollectMpin
-    CollectMpinRequest, CollectMpinResponse,
-    // Notify
-    NotifyRequest, NotifyResponse,
-    // ReqPay
-    ReqPayRequest, ReqPayResponse, ReqPayResult,
-    // AwaitCallback
-    AwaitCallbackRequest, AwaitCallbackResponse, CallbackResult,
-    // AwaitDeemedResolution
-    AwaitDeemedResolutionRequest, AwaitDeemedResolutionResponse, DeemedResolutionResult,
-    // AwaitForcedReversal
-    AwaitForcedReversalRequest, AwaitForcedReversalResponse,
 };
 
 // Re-export generic event storage structures from driver_framework

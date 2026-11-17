@@ -3,11 +3,6 @@
 //! This function takes an entity snapshot, context, and event history and
 //! reconstructs the original PayerPay bookmark. The reconstruction is pure
 //! and can be formally verified.
-//!
-//! The key insight is that the current wait point can be determined by:
-//! 1. The entity state
-//! 2. The current event type
-//! 3. Data from previous events (stored in their responses)
 
 use crate::context::FlowContext;
 use crate::entity::*;
@@ -19,38 +14,29 @@ use psp_flow::values::*;
 /// Errors that can occur during reconstruction.
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub enum ReconstructError {
-    /// No current (non-processed) event found in the event list.
-    NoCurrentEvent,
+    /// No pending event found in the event list.
+    NoPendingEvent,
     /// The entity state and event type combination is invalid.
     InvalidStateEventCombination { state: &'static str, event_type: String },
     /// Missing required data from event history.
     MissingEventData(&'static str),
-    /// The entity snapshot is a terminal state (should use Stored::Finished).
+    /// The entity snapshot is a terminal state.
     TerminalState,
-    /// Failed to parse event type.
-    InvalidEventType(String),
     /// Failed to deserialize JSON.
     JsonError(String),
 }
 
-/// Find the current (non-processed) event from the event list.
-fn find_current_event(events: &[EventData]) -> Option<&EventData> {
-    events.iter().find(|e| e.is_current())
+/// Find the pending event from the event list.
+fn find_pending_event(events: &[EventData]) -> Option<&EventData> {
+    events.iter().find(|e| e.is_pending())
 }
 
-/// Parse event type from string.
-fn parse_event_type(s: &str) -> Result<EventType, ReconstructError> {
-    EventType::from_str(s).ok_or_else(|| ReconstructError::InvalidEventType(s.to_string()))
-}
-
-/// Extract refs from event history for NotifySuccess.
+/// Extract success refs from previous system async callback.
 fn extract_success_refs(events: &[EventData]) -> Result<(Ref, Ref), ReconstructError> {
     for event in events {
-        if event.event_type == "AwaitCallback" {
-            if let Some(ref resp_json) = event.response_body {
-                let resp: AwaitCallbackResponse = serde_json::from_value(resp_json.clone())
-                    .map_err(|e| ReconstructError::JsonError(e.to_string()))?;
-                if let CallbackResult::Success { debit_ref, credit_ref } = resp.result {
+        if event.timing == Timing::AsyncCallback && event.target_source == TargetSource::System {
+            if let Ok(callback) = serde_json::from_value::<SystemAsyncCallback>(event.event_body.clone()) {
+                if let SystemAsyncCallback::PaymentSuccess { debit_ref, credit_ref } = callback {
                     return Ok((debit_ref, credit_ref));
                 }
             }
@@ -59,14 +45,12 @@ fn extract_success_refs(events: &[EventData]) -> Result<(Ref, Ref), ReconstructE
     Err(ReconstructError::MissingEventData("success refs"))
 }
 
-/// Extract credit_ref from event history for NotifyConfirmed.
+/// Extract credit_ref from deemed resolution callback.
 fn extract_confirmed_credit_ref(events: &[EventData]) -> Result<Ref, ReconstructError> {
     for event in events {
-        if event.event_type == "AwaitDeemedResolution" {
-            if let Some(ref resp_json) = event.response_body {
-                let resp: AwaitDeemedResolutionResponse = serde_json::from_value(resp_json.clone())
-                    .map_err(|e| ReconstructError::JsonError(e.to_string()))?;
-                if let DeemedResolutionResult::Success { credit_ref } = resp.result {
+        if event.timing == Timing::AsyncCallback && event.target_source == TargetSource::System {
+            if let Ok(callback) = serde_json::from_value::<SystemAsyncCallback>(event.event_body.clone()) {
+                if let SystemAsyncCallback::DeemedSuccess { credit_ref } = callback {
                     return Ok(credit_ref);
                 }
             }
@@ -76,30 +60,21 @@ fn extract_confirmed_credit_ref(events: &[EventData]) -> Result<Ref, Reconstruct
 }
 
 /// Reconstruct a PayerPay bookmark from persistence snapshots.
-///
-/// # Arguments
-/// * `entity` - The entity snapshot
-/// * `_ctx` - The flow context (currently unused)
-/// * `events` - The event history including the current event
-///
-/// # Returns
-/// The reconstructed PayerPay bookmark, or an error if reconstruction fails.
 pub fn reconstruct(
     entity: &EntitySnapshot,
     _ctx: &FlowContext,
     events: &[EventData],
 ) -> Result<PayerPay, ReconstructError> {
-    // Terminal states should not be reconstructed as PayerPay
     if entity.is_terminal() {
         return Err(ReconstructError::TerminalState);
     }
 
-    let current = find_current_event(events).ok_or(ReconstructError::NoCurrentEvent)?;
-    let event_type = parse_event_type(&current.event_type)?;
+    let current = find_pending_event(events).ok_or(ReconstructError::NoPendingEvent)?;
+    let event_type = current.event_type.as_str();
 
     match (entity, event_type) {
         // Initiated state combinations
-        (EntitySnapshot::Initiated(e), EventType::GetPaymentIntent) => {
+        (EntitySnapshot::Initiated(e), "GetPaymentIntent") => {
             let txn = Txn {
                 id: e.id,
                 data: Initiated { payer: e.payer },
@@ -107,28 +82,36 @@ pub fn reconstruct(
             Ok(PayerPay::AtGetPaymentIntent(AtGetPaymentIntent { txn }))
         }
 
-        (EntitySnapshot::Initiated(e), EventType::ShowError) => {
+        (EntitySnapshot::Initiated(e), "ShowError") => {
             let txn = Txn {
                 id: e.id,
                 data: Initiated { payer: e.payer },
             };
-            let req: ShowErrorRequest = serde_json::from_value(current.request_body.clone())
+            let cmd: UserCommand = serde_json::from_value(current.event_body.clone())
                 .map_err(|e| ReconstructError::JsonError(e.to_string()))?;
-            Ok(PayerPay::AtShowError(AtShowError { txn, reason: req.reason }))
+            let reason = match cmd {
+                UserCommand::ShowError { reason } => reason,
+                _ => return Err(ReconstructError::MissingEventData("reason")),
+            };
+            Ok(PayerPay::AtShowError(AtShowError { txn, reason }))
         }
 
-        (EntitySnapshot::Initiated(e), EventType::CollectMpin) => {
+        (EntitySnapshot::Initiated(e), "CollectMpin") => {
             let txn = Txn {
                 id: e.id,
                 data: Initiated { payer: e.payer },
             };
-            let req: CollectMpinRequest = serde_json::from_value(current.request_body.clone())
+            let cmd: UserCommand = serde_json::from_value(current.event_body.clone())
                 .map_err(|e| ReconstructError::JsonError(e.to_string()))?;
-            Ok(PayerPay::AtCollectMpin(AtCollectMpin { txn, intent: req.intent }))
+            let intent = match cmd {
+                UserCommand::CollectMpin { intent, .. } => intent,
+                _ => return Err(ReconstructError::MissingEventData("intent")),
+            };
+            Ok(PayerPay::AtCollectMpin(AtCollectMpin { txn, intent }))
         }
 
         // Authenticated state combinations
-        (EntitySnapshot::Authenticated(e), EventType::ReqPay) => {
+        (EntitySnapshot::Authenticated(e), "ReqPay") => {
             let txn = Txn {
                 id: e.id,
                 data: Authenticated {
@@ -141,7 +124,7 @@ pub fn reconstruct(
             Ok(PayerPay::AtReqPay(AtReqPay { txn, req }))
         }
 
-        (EntitySnapshot::Authenticated(e), EventType::Notify) => {
+        (EntitySnapshot::Authenticated(e), "Notify") => {
             let txn = Txn {
                 id: e.id,
                 data: Authenticated {
@@ -150,22 +133,18 @@ pub fn reconstruct(
                     mpin: e.mpin,
                 },
             };
-            let req_pay = txn.build_req_pay();
-            let notify_req: NotifyRequest = serde_json::from_value(current.request_body.clone())
+            let req = txn.build_req_pay();
+            let cmd: UserCommand = serde_json::from_value(current.event_body.clone())
                 .map_err(|e| ReconstructError::JsonError(e.to_string()))?;
-            let reason = match notify_req.status {
-                Status::Failed(r) => r,
+            let reason = match cmd {
+                UserCommand::Notify { status: Status::Failed(r) } => r,
                 _ => return Err(ReconstructError::MissingEventData("reason from status")),
             };
-            Ok(PayerPay::AtNotifyRejected(AtNotifyRejected {
-                txn,
-                req: req_pay,
-                reason,
-            }))
+            Ok(PayerPay::AtNotifyRejected(AtNotifyRejected { txn, req, reason }))
         }
 
         // Submitted state combinations
-        (EntitySnapshot::Submitted(e), EventType::AwaitCallback) => {
+        (EntitySnapshot::Submitted(e), "AwaitCallback") => {
             let txn = Txn {
                 id: e.id,
                 data: Submitted { req: e.req },
@@ -173,26 +152,22 @@ pub fn reconstruct(
             Ok(PayerPay::AtAwaitCallback(AtAwaitCallback { txn }))
         }
 
-        (EntitySnapshot::Submitted(e), EventType::Notify) => {
+        (EntitySnapshot::Submitted(e), "Notify") => {
             let txn = Txn {
                 id: e.id,
                 data: Submitted { req: e.req },
             };
-            let notify_req: NotifyRequest = serde_json::from_value(current.request_body.clone())
+            let cmd: UserCommand = serde_json::from_value(current.event_body.clone())
                 .map_err(|e| ReconstructError::JsonError(e.to_string()))?;
-            match notify_req.status {
-                Status::Successful => {
+            match cmd {
+                UserCommand::Notify { status: Status::Successful } => {
                     let (debit_ref, credit_ref) = extract_success_refs(events)?;
-                    Ok(PayerPay::AtNotifySuccess(AtNotifySuccess {
-                        txn,
-                        debit_ref,
-                        credit_ref,
-                    }))
+                    Ok(PayerPay::AtNotifySuccess(AtNotifySuccess { txn, debit_ref, credit_ref }))
                 }
-                Status::Failed(reason) => {
+                UserCommand::Notify { status: Status::Failed(reason) } => {
                     Ok(PayerPay::AtNotifyFailed(AtNotifyFailed { txn, reason }))
                 }
-                Status::Processing => {
+                UserCommand::Notify { status: Status::Processing } => {
                     Ok(PayerPay::AtNotifyProcessing(AtNotifyProcessing { txn }))
                 }
                 _ => Err(ReconstructError::MissingEventData("notify status")),
@@ -200,7 +175,7 @@ pub fn reconstruct(
         }
 
         // Deemed state combinations
-        (EntitySnapshot::Deemed(e), EventType::AwaitDeemedResolution) => {
+        (EntitySnapshot::Deemed(e), "AwaitDeemedResolution") => {
             let txn = Txn {
                 id: e.id,
                 data: Deemed { req: e.req },
@@ -208,65 +183,56 @@ pub fn reconstruct(
             Ok(PayerPay::AtAwaitDeemed(AtAwaitDeemed { txn }))
         }
 
-        (EntitySnapshot::Deemed(e), EventType::Notify) => {
+        (EntitySnapshot::Deemed(e), "Notify") => {
             let txn = Txn {
                 id: e.id,
                 data: Deemed { req: e.req },
             };
-            let notify_req: NotifyRequest = serde_json::from_value(current.request_body.clone())
+            let cmd: UserCommand = serde_json::from_value(current.event_body.clone())
                 .map_err(|e| ReconstructError::JsonError(e.to_string()))?;
-            match notify_req.status {
-                Status::Confirmed => {
+            match cmd {
+                UserCommand::Notify { status: Status::Confirmed } => {
                     let credit_ref = extract_confirmed_credit_ref(events)?;
-                    Ok(PayerPay::AtNotifyConfirmed(AtNotifyConfirmed {
-                        txn,
-                        credit_ref,
-                    }))
+                    Ok(PayerPay::AtNotifyConfirmed(AtNotifyConfirmed { txn, credit_ref }))
                 }
-                Status::Reversed => {
-                    Ok(PayerPay::AtNotifyDeemedReversed(AtNotifyDeemedReversed {
-                        txn,
-                    }))
+                UserCommand::Notify { status: Status::Reversed } => {
+                    Ok(PayerPay::AtNotifyDeemedReversed(AtNotifyDeemedReversed { txn }))
                 }
                 _ => Err(ReconstructError::MissingEventData("notify status")),
             }
         }
 
         // ReversalPending state combinations
-        (EntitySnapshot::ReversalPending(e), EventType::Notify) => {
+        (EntitySnapshot::ReversalPending(e), "Notify") => {
             let txn = Txn {
                 id: e.id,
                 data: ReversalPending { req: e.req },
             };
-            let notify_req: NotifyRequest = serde_json::from_value(current.request_body.clone())
+            let cmd: UserCommand = serde_json::from_value(current.event_body.clone())
                 .map_err(|e| ReconstructError::JsonError(e.to_string()))?;
-            match notify_req.status {
-                Status::ReversalInProgress => {
-                    Ok(PayerPay::AtNotifyReversalStart(AtNotifyReversalStart {
-                        txn,
-                    }))
+            match cmd {
+                UserCommand::Notify { status: Status::ReversalInProgress } => {
+                    Ok(PayerPay::AtNotifyReversalStart(AtNotifyReversalStart { txn }))
                 }
-                Status::Reversed => {
+                UserCommand::Notify { status: Status::Reversed } => {
                     Ok(PayerPay::AtNotifyReversed(AtNotifyReversed { txn }))
                 }
                 _ => Err(ReconstructError::MissingEventData("notify status")),
             }
         }
 
-        (EntitySnapshot::ReversalPending(e), EventType::AwaitForcedReversal) => {
+        (EntitySnapshot::ReversalPending(e), "AwaitForcedReversal") => {
             let txn = Txn {
                 id: e.id,
                 data: ReversalPending { req: e.req },
             };
-            Ok(PayerPay::AtAwaitForcedReversal(AtAwaitForcedReversal {
-                txn,
-            }))
+            Ok(PayerPay::AtAwaitForcedReversal(AtAwaitForcedReversal { txn }))
         }
 
         // Invalid combinations
         _ => Err(ReconstructError::InvalidStateEventCombination {
             state: entity.state_name(),
-            event_type: current.event_type.clone(),
+            event_type: event_type.to_string(),
         }),
     }
 }
@@ -312,8 +278,6 @@ mod tests {
         assert_eq!(reconstructed, bookmark);
     }
 
-    // ---- Initiated state tests ----
-
     #[test]
     fn test_round_trip_at_get_payment_intent() {
         let txn = make_initiated_txn();
@@ -338,8 +302,6 @@ mod tests {
         }));
     }
 
-    // ---- Authenticated state tests ----
-
     #[test]
     fn test_round_trip_at_req_pay() {
         let txn = make_authenticated_txn();
@@ -358,8 +320,6 @@ mod tests {
         }));
     }
 
-    // ---- Submitted state tests ----
-
     #[test]
     fn test_round_trip_at_await_callback() {
         let txn = make_submitted_txn();
@@ -375,19 +335,19 @@ mod tests {
             credit_ref: Ref(2002),
         });
 
-        // AtNotifySuccess requires previous AwaitCallback event with success response
         let (entity, ctx, notify_event) = decompose(&bookmark, 1);
 
-        // Create the prerequisite AwaitCallback event with response
-        let callback_req = AwaitCallbackRequest { timeout_secs: CALLBACK_TIMEOUT_SECS };
-        let mut callback_event = EventData::new(
+        // Create prerequisite callback event with success response
+        let callback = SystemAsyncCallback::PaymentSuccess {
+            debit_ref: Ref(1001),
+            credit_ref: Ref(2002),
+        };
+        let mut callback_event = EventData::system_async_callback(
             0,
-            EventType::AwaitCallback.as_str(),
-            serde_json::to_value(&callback_req).unwrap(),
+            "PaymentSuccess",
+            serde_json::to_value(&callback).unwrap(),
         );
-        callback_event.status = EventStatus::Processed;
-        let callback_resp = AwaitCallbackResponse::success(Ref(1001), Ref(2002));
-        callback_event.response_body = Some(serde_json::to_value(&callback_resp).unwrap());
+        callback_event.mark_completed();
 
         let reconstructed = reconstruct(&entity, &ctx, &[callback_event, notify_event]).unwrap();
         assert_eq!(reconstructed, bookmark);
@@ -408,8 +368,6 @@ mod tests {
         round_trip(PayerPay::AtNotifyProcessing(AtNotifyProcessing { txn }));
     }
 
-    // ---- Deemed state tests ----
-
     #[test]
     fn test_round_trip_at_await_deemed() {
         let txn = make_deemed_txn();
@@ -424,48 +382,36 @@ mod tests {
             credit_ref: Ref(3003),
         });
 
-        // AtNotifyConfirmed requires previous AwaitDeemedResolution with success response
         let (entity, ctx, notify_event) = decompose(&bookmark, 1);
 
-        let resolution_req = AwaitDeemedResolutionRequest { deadline_days: DEEMED_DEADLINE_DAYS };
-        let mut resolution_event = EventData::new(
+        let callback = SystemAsyncCallback::DeemedSuccess { credit_ref: Ref(3003) };
+        let mut callback_event = EventData::system_async_callback(
             0,
-            EventType::AwaitDeemedResolution.as_str(),
-            serde_json::to_value(&resolution_req).unwrap(),
+            "DeemedSuccess",
+            serde_json::to_value(&callback).unwrap(),
         );
-        resolution_event.status = EventStatus::Processed;
-        let resolution_resp = AwaitDeemedResolutionResponse::success(Ref(3003));
-        resolution_event.response_body = Some(serde_json::to_value(&resolution_resp).unwrap());
+        callback_event.mark_completed();
 
-        let reconstructed =
-            reconstruct(&entity, &ctx, &[resolution_event, notify_event]).unwrap();
+        let reconstructed = reconstruct(&entity, &ctx, &[callback_event, notify_event]).unwrap();
         assert_eq!(reconstructed, bookmark);
     }
 
     #[test]
     fn test_round_trip_at_notify_deemed_reversed() {
         let txn = make_deemed_txn();
-        round_trip(PayerPay::AtNotifyDeemedReversed(AtNotifyDeemedReversed {
-            txn,
-        }));
+        round_trip(PayerPay::AtNotifyDeemedReversed(AtNotifyDeemedReversed { txn }));
     }
-
-    // ---- ReversalPending state tests ----
 
     #[test]
     fn test_round_trip_at_notify_reversal_start() {
         let txn = make_reversal_pending_txn();
-        round_trip(PayerPay::AtNotifyReversalStart(AtNotifyReversalStart {
-            txn,
-        }));
+        round_trip(PayerPay::AtNotifyReversalStart(AtNotifyReversalStart { txn }));
     }
 
     #[test]
     fn test_round_trip_at_await_forced_reversal() {
         let txn = make_reversal_pending_txn();
-        round_trip(PayerPay::AtAwaitForcedReversal(AtAwaitForcedReversal {
-            txn,
-        }));
+        round_trip(PayerPay::AtAwaitForcedReversal(AtAwaitForcedReversal { txn }));
     }
 
     #[test]
@@ -473,8 +419,6 @@ mod tests {
         let txn = make_reversal_pending_txn();
         round_trip(PayerPay::AtNotifyReversed(AtNotifyReversed { txn }));
     }
-
-    // ---- Error cases ----
 
     #[test]
     fn test_terminal_state_error() {
@@ -490,11 +434,10 @@ mod tests {
             credit_ref: Ref(2),
         });
         let ctx = FlowContext::default();
-        let req = NotifyRequest { status: Status::Successful };
-        let event = EventData::new(
+        let event = EventData::user_command(
             0,
-            EventType::Notify.as_str(),
-            serde_json::to_value(&req).unwrap(),
+            "Notify",
+            serde_json::to_value(&UserCommand::Notify { status: Status::Successful }).unwrap(),
         );
 
         let result = reconstruct(&entity, &ctx, &[event]);
@@ -502,24 +445,22 @@ mod tests {
     }
 
     #[test]
-    fn test_no_current_event_error() {
+    fn test_no_pending_event_error() {
         let entity = EntitySnapshot::Initiated(InitiatedEntity {
             id: TxnId(1),
             payer: PayerId(42),
         });
         let ctx = FlowContext::default();
 
-        // All events are processed
-        let req = GetPaymentIntentRequest { payer: PayerId(42) };
-        let mut event = EventData::new(
+        let mut event = EventData::user_command(
             0,
-            EventType::GetPaymentIntent.as_str(),
-            serde_json::to_value(&req).unwrap(),
+            "GetPaymentIntent",
+            serde_json::to_value(&UserCommand::GetPaymentIntent { payer: PayerId(42) }).unwrap(),
         );
-        event.status = EventStatus::Processed;
+        event.mark_completed();
 
         let result = reconstruct(&entity, &ctx, &[event]);
-        assert_eq!(result, Err(ReconstructError::NoCurrentEvent));
+        assert_eq!(result, Err(ReconstructError::NoPendingEvent));
     }
 
     #[test]
@@ -530,12 +471,14 @@ mod tests {
         });
         let ctx = FlowContext::default();
 
-        // AwaitCallback is not valid for Initiated state
-        let req = AwaitCallbackRequest { timeout_secs: 30 };
         let event = EventData::new(
             0,
-            EventType::AwaitCallback.as_str(),
-            serde_json::to_value(&req).unwrap(),
+            Direction::In,
+            TargetSource::System,
+            InitiatedBy::Them,
+            Timing::AsyncCallback,
+            "AwaitCallback",
+            serde_json::json!({}),
         );
 
         let result = reconstruct(&entity, &ctx, &[event]);

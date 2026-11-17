@@ -16,7 +16,6 @@ use sea_orm::{
     ActiveModelTrait, ColumnTrait, DatabaseConnection, DbErr, EntityTrait, QueryFilter,
     QueryOrder,
 };
-use serde_json::Value as JsonValue;
 use thiserror::Error;
 
 /// Errors from the SeaORM store.
@@ -73,7 +72,7 @@ impl SeaFlowStore {
             )
             .await?;
 
-        // Create events table (with JSON columns for request/response)
+        // Create events table with classification columns
         self.db
             .execute_unprepared(
                 r#"
@@ -81,14 +80,18 @@ impl SeaFlowStore {
                 id INTEGER PRIMARY KEY AUTOINCREMENT,
                 txn_id INTEGER NOT NULL,
                 seq INTEGER NOT NULL,
+                -- Classification
+                direction TEXT NOT NULL,
+                target_source TEXT NOT NULL,
+                initiated_by TEXT NOT NULL,
+                timing TEXT NOT NULL,
+                -- Payload
                 event_type TEXT NOT NULL,
+                event_body TEXT NOT NULL,
+                -- Status
                 status TEXT NOT NULL,
-                request TEXT NOT NULL,
-                response TEXT,
                 created_at TEXT NOT NULL,
-                sent_at TEXT,
-                received_at TEXT,
-                processed_at TEXT,
+                completed_at TEXT,
                 FOREIGN KEY (txn_id) REFERENCES upi_txn(id)
             )
             "#,
@@ -180,44 +183,13 @@ impl FlowStore for SeaFlowStore {
             .await?
             .ok_or(StoreError::EventNotFound(id.0, seq))?;
 
-        let now = Utc::now();
         let mut update: events::ActiveModel = event.into();
         update.status = Set(status.as_str().to_string());
 
-        // Set appropriate timestamp
-        match status {
-            EventStatus::Awaiting => update.sent_at = Set(Some(now)),
-            EventStatus::Received => update.received_at = Set(Some(now)),
-            EventStatus::Processed => update.processed_at = Set(Some(now)),
-            EventStatus::Initialized => {}
+        // Set completed_at timestamp when marking as completed
+        if status == EventStatus::Completed {
+            update.completed_at = Set(Some(Utc::now()));
         }
-
-        update.update(&self.db).await?;
-        Ok(())
-    }
-
-    async fn update_event_response(
-        &self,
-        id: TxnId,
-        seq: i32,
-        response: JsonValue,
-    ) -> Result<(), Self::Error> {
-        let event = events::Entity::find()
-            .filter(events::Column::TxnId.eq(id.0 as i64))
-            .filter(events::Column::Seq.eq(seq))
-            .one(&self.db)
-            .await?
-            .ok_or(StoreError::EventNotFound(id.0, seq))?;
-
-        let now = Utc::now();
-        let mut update: events::ActiveModel = event.into();
-
-        // Set status to Received
-        update.status = Set(EventStatus::Received.as_str().to_string());
-        update.received_at = Set(Some(now));
-
-        // Store response as JSON string
-        update.response = Set(Some(serde_json::to_string(&response).unwrap()));
 
         update.update(&self.db).await?;
         Ok(())
@@ -236,10 +208,10 @@ impl FlowStore for SeaFlowStore {
             .collect()
     }
 
-    async fn current_event(&self, id: TxnId) -> Result<Option<EventData>, Self::Error> {
+    async fn pending_event(&self, id: TxnId) -> Result<Option<EventData>, Self::Error> {
         let model = events::Entity::find()
             .filter(events::Column::TxnId.eq(id.0 as i64))
-            .filter(events::Column::Status.ne(EventStatus::Processed.as_str()))
+            .filter(events::Column::Status.eq(EventStatus::Pending.as_str()))
             .order_by_asc(events::Column::Seq)
             .one(&self.db)
             .await?;
@@ -308,9 +280,10 @@ impl FlowStore for SeaFlowStore {
 #[cfg(all(test, feature = "sqlite"))]
 mod tests {
     use super::*;
-    use psp_flow::persist::GetPaymentIntentRequest;
+    use psp_flow::persist::UserCommand;
     use psp_flow::values::*;
     use psp_persistence::entity::InitiatedEntity;
+    use psp_persistence::{Direction, InitiatedBy, TargetSource, Timing};
     use sea_orm::Database;
 
     async fn setup_test_db() -> SeaFlowStore {
@@ -347,11 +320,11 @@ mod tests {
         });
         store.save_entity(id, &entity).await.unwrap();
 
-        let request = GetPaymentIntentRequest { payer: PayerId(42) };
-        let event = EventData::new(
+        let cmd = UserCommand::GetPaymentIntent { payer: PayerId(42) };
+        let event = EventData::user_command(
             0,
-            "GetPaymentIntent",
-            serde_json::to_value(&request).unwrap(),
+            cmd.event_type(),
+            serde_json::to_value(&cmd).unwrap(),
         );
         store.insert_event(id, &event).await.unwrap();
 
@@ -359,6 +332,10 @@ mod tests {
         assert_eq!(events.len(), 1);
         assert_eq!(events[0].seq, 0);
         assert_eq!(events[0].event_type, "GetPaymentIntent");
+        assert_eq!(events[0].direction, Direction::Out);
+        assert_eq!(events[0].target_source, TargetSource::User);
+        assert_eq!(events[0].initiated_by, InitiatedBy::Us);
+        assert_eq!(events[0].timing, Timing::Command);
     }
 
     #[tokio::test]

@@ -7,7 +7,6 @@ use crate::context::{FlowContext, Segment};
 use crate::entity::EntitySnapshot;
 use crate::event_data::{EventData, EventStatus};
 use psp_flow::values::TxnId;
-use serde_json::Value as JsonValue;
 use std::error::Error;
 use std::future::Future;
 
@@ -22,8 +21,6 @@ pub trait FlowStore: Send + Sync {
     // ---- Entity operations ----
 
     /// Save an entity snapshot.
-    ///
-    /// This should upsert (insert or update) the entity.
     fn save_entity(
         &self,
         id: TxnId,
@@ -31,8 +28,6 @@ pub trait FlowStore: Send + Sync {
     ) -> impl Future<Output = Result<(), Self::Error>> + Send;
 
     /// Load an entity snapshot by transaction ID.
-    ///
-    /// Returns None if the entity doesn't exist.
     fn load_entity(
         &self,
         id: TxnId,
@@ -41,8 +36,6 @@ pub trait FlowStore: Send + Sync {
     // ---- Event operations ----
 
     /// Insert a new event record.
-    ///
-    /// Returns the sequence number assigned to the event.
     fn insert_event(
         &self,
         id: TxnId,
@@ -57,28 +50,14 @@ pub trait FlowStore: Send + Sync {
         status: EventStatus,
     ) -> impl Future<Output = Result<(), Self::Error>> + Send;
 
-    /// Update the response of an event (as JSON).
-    ///
-    /// This also sets the status to Received.
-    fn update_event_response(
-        &self,
-        id: TxnId,
-        seq: i32,
-        response: JsonValue,
-    ) -> impl Future<Output = Result<(), Self::Error>> + Send;
-
     /// Load all events for a transaction.
-    ///
-    /// Events should be ordered by sequence number.
     fn load_events(
         &self,
         id: TxnId,
     ) -> impl Future<Output = Result<Vec<EventData>, Self::Error>> + Send;
 
-    /// Load the current (non-processed) event for a transaction.
-    ///
-    /// Returns None if all events are processed or no events exist.
-    fn current_event(
+    /// Load the pending event for a transaction.
+    fn pending_event(
         &self,
         id: TxnId,
     ) -> impl Future<Output = Result<Option<EventData>, Self::Error>> + Send;
@@ -93,8 +72,6 @@ pub trait FlowStore: Send + Sync {
     ) -> impl Future<Output = Result<(), Self::Error>> + Send;
 
     /// Load the flow context.
-    ///
-    /// Returns the default context if none exists.
     fn load_context(
         &self,
         id: TxnId,
@@ -103,15 +80,11 @@ pub trait FlowStore: Send + Sync {
     // ---- Recovery operations ----
 
     /// Find all transactions with pending (non-terminal) state.
-    ///
-    /// Used for crash recovery to resume in-flight transactions.
     fn find_pending(&self) -> impl Future<Output = Result<Vec<TxnId>, Self::Error>> + Send;
 
     // ---- Query operations ----
 
     /// Find all transactions currently in a specific segment.
-    ///
-    /// Used for monitoring and operational queries.
     fn find_by_state(
         &self,
         state: Segment,
@@ -137,8 +110,6 @@ pub trait FlowStoreExt: FlowStore {
     }
 
     /// Save an entity, context, and new event atomically.
-    ///
-    /// Note: Actual atomicity depends on the implementation.
     fn save_full(
         &self,
         id: TxnId,

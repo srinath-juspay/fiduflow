@@ -9,7 +9,7 @@ default = []
 # Debug/PartialEq derives are only needed by the runtime and tests; kept off for Charon.
 runtime = []
 # Persistence support: typed EventRequest/EventResponse with serde serialization
-persist = ["runtime", "dep:serde", "dep:serde_json"]
+persist = ["runtime", "dep:serde", "dep:serde_json", "driver-framework/persist"]
 
 [dependencies]
 driver-framework = { path = "../driver-framework" }

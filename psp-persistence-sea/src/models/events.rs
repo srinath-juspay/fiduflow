@@ -1,46 +1,48 @@
 //! SeaORM entity model for the events table.
 //!
-//! This table stores the event lifecycle for each transaction.
-//! Request and response data are stored as JSON blobs.
+//! This table stores all flow events with classification metadata.
+//! Event body is stored as JSON for flexibility.
 
+use chrono::{DateTime, Utc};
 use sea_orm::entity::prelude::*;
+
+pub type DateTimeUtc = DateTime<Utc>;
 
 #[derive(Clone, Debug, PartialEq, Eq, DeriveEntityModel)]
 #[sea_orm(table_name = "events")]
 pub struct Model {
-    /// Auto-generated primary key.
     #[sea_orm(primary_key)]
     pub id: i64,
 
-    /// Transaction ID (foreign key to upi_txn).
+    /// Foreign key to upi_txn.
     pub txn_id: i64,
 
-    /// Sequence number within the transaction (0-indexed).
+    /// Sequence number within the transaction.
     pub seq: i32,
 
-    /// Event type (GetPaymentIntent, ShowError, etc.).
-    pub event_type: String,
+    // === Classification ===
+    /// Direction: 'Out' | 'In'
+    pub direction: String,
+    /// Target/Source: 'User' | 'System'
+    pub target_source: String,
+    /// Initiated by: 'Us' | 'Them'
+    pub initiated_by: String,
+    /// Timing: 'Command' | 'Request' | 'Notification' | 'SyncAck' | 'AsyncResponse' | 'AsyncCallback'
+    pub timing: String,
 
-    /// Event status (Initialized, Awaiting, Received, Processed).
+    // === Payload ===
+    /// Event type name.
+    pub event_type: String,
+    /// Event body as JSON string.
+    pub event_body: String,
+
+    // === Status ===
+    /// Event status: 'Pending' | 'Completed'
     pub status: String,
 
-    /// Request data as JSON.
-    pub request: String,
-
-    /// Response data as JSON (nullable).
-    pub response: Option<String>,
-
-    /// When the event was created.
+    // === Timestamps ===
     pub created_at: DateTimeUtc,
-
-    /// When the event was sent.
-    pub sent_at: Option<DateTimeUtc>,
-
-    /// When the response was received.
-    pub received_at: Option<DateTimeUtc>,
-
-    /// When the event was processed.
-    pub processed_at: Option<DateTimeUtc>,
+    pub completed_at: Option<DateTimeUtc>,
 }
 
 #[derive(Copy, Clone, Debug, EnumIter, DeriveRelation)]

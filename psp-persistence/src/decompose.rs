@@ -3,7 +3,7 @@
 //! This function takes a flow bookmark and extracts:
 //! - EntitySnapshot: the entity state data
 //! - FlowContext: cross-segment locals
-//! - EventData: the current event being awaited (with JSON request body)
+//! - EventData: the current event being awaited (with classification + JSON body)
 //!
 //! The decomposition is pure and can be formally verified.
 
@@ -26,11 +26,11 @@ pub fn decompose(bookmark: &PayerPay, seq: i32) -> (EntitySnapshot, FlowContext,
                 id: w.txn.id,
                 payer: w.txn.data.payer,
             });
-            let request = GetPaymentIntentRequest { payer: w.txn.data.payer };
-            let event = EventData::new(
+            let cmd = UserCommand::GetPaymentIntent { payer: w.txn.data.payer };
+            let event = EventData::user_command(
                 seq,
-                EventType::GetPaymentIntent.as_str(),
-                serde_json::to_value(&request).unwrap(),
+                cmd.event_type(),
+                serde_json::to_value(&cmd).unwrap(),
             );
             (entity, ctx, event)
         }
@@ -40,11 +40,11 @@ pub fn decompose(bookmark: &PayerPay, seq: i32) -> (EntitySnapshot, FlowContext,
                 id: w.txn.id,
                 payer: w.txn.data.payer,
             });
-            let request = ShowErrorRequest { reason: w.reason };
-            let event = EventData::new(
+            let cmd = UserCommand::ShowError { reason: w.reason };
+            let event = EventData::user_command(
                 seq,
-                EventType::ShowError.as_str(),
-                serde_json::to_value(&request).unwrap(),
+                cmd.event_type(),
+                serde_json::to_value(&cmd).unwrap(),
             );
             (entity, ctx, event)
         }
@@ -54,14 +54,14 @@ pub fn decompose(bookmark: &PayerPay, seq: i32) -> (EntitySnapshot, FlowContext,
                 id: w.txn.id,
                 payer: w.txn.data.payer,
             });
-            let request = CollectMpinRequest {
+            let cmd = UserCommand::CollectMpin {
                 payer: w.txn.data.payer,
                 intent: w.intent,
             };
-            let event = EventData::new(
+            let event = EventData::user_command(
                 seq,
-                EventType::CollectMpin.as_str(),
-                serde_json::to_value(&request).unwrap(),
+                cmd.event_type(),
+                serde_json::to_value(&cmd).unwrap(),
             );
             (entity, ctx, event)
         }
@@ -73,11 +73,11 @@ pub fn decompose(bookmark: &PayerPay, seq: i32) -> (EntitySnapshot, FlowContext,
                 intent: w.txn.data.intent,
                 mpin: w.txn.data.mpin,
             });
-            let request = ReqPayRequest { req: w.req };
-            let event = EventData::new(
+            let cmd = SystemCommand::ReqPay { req: w.req };
+            let event = EventData::system_command(
                 seq,
-                EventType::ReqPay.as_str(),
-                serde_json::to_value(&request).unwrap(),
+                cmd.event_type(),
+                serde_json::to_value(&cmd).unwrap(),
             );
             (entity, ctx, event)
         }
@@ -89,11 +89,11 @@ pub fn decompose(bookmark: &PayerPay, seq: i32) -> (EntitySnapshot, FlowContext,
                 intent: w.txn.data.intent,
                 mpin: w.txn.data.mpin,
             });
-            let request = NotifyRequest { status: Status::Failed(w.reason) };
-            let event = EventData::new(
+            let cmd = UserCommand::Notify { status: Status::Failed(w.reason) };
+            let event = EventData::user_command(
                 seq,
-                EventType::Notify.as_str(),
-                serde_json::to_value(&request).unwrap(),
+                cmd.event_type(),
+                serde_json::to_value(&cmd).unwrap(),
             );
             (entity, ctx, event)
         }
@@ -103,11 +103,16 @@ pub fn decompose(bookmark: &PayerPay, seq: i32) -> (EntitySnapshot, FlowContext,
                 id: w.txn.id,
                 req: w.txn.data.req,
             });
-            let request = AwaitCallbackRequest { timeout_secs: CALLBACK_TIMEOUT_SECS };
+            // AwaitCallback is waiting for SystemAsyncCallback
+            // We store it as a system command placeholder (the ReqPay was already sent)
             let event = EventData::new(
                 seq,
-                EventType::AwaitCallback.as_str(),
-                serde_json::to_value(&request).unwrap(),
+                Direction::In,
+                TargetSource::System,
+                InitiatedBy::Them,
+                Timing::AsyncCallback,
+                "AwaitCallback",
+                serde_json::json!({"timeout_secs": CALLBACK_TIMEOUT_SECS}),
             );
             (entity, ctx, event)
         }
@@ -117,11 +122,11 @@ pub fn decompose(bookmark: &PayerPay, seq: i32) -> (EntitySnapshot, FlowContext,
                 id: w.txn.id,
                 req: w.txn.data.req,
             });
-            let request = NotifyRequest { status: Status::Successful };
-            let event = EventData::new(
+            let cmd = UserCommand::Notify { status: Status::Successful };
+            let event = EventData::user_command(
                 seq,
-                EventType::Notify.as_str(),
-                serde_json::to_value(&request).unwrap(),
+                cmd.event_type(),
+                serde_json::to_value(&cmd).unwrap(),
             );
             (entity, ctx, event)
         }
@@ -131,11 +136,11 @@ pub fn decompose(bookmark: &PayerPay, seq: i32) -> (EntitySnapshot, FlowContext,
                 id: w.txn.id,
                 req: w.txn.data.req,
             });
-            let request = NotifyRequest { status: Status::Failed(w.reason) };
-            let event = EventData::new(
+            let cmd = UserCommand::Notify { status: Status::Failed(w.reason) };
+            let event = EventData::user_command(
                 seq,
-                EventType::Notify.as_str(),
-                serde_json::to_value(&request).unwrap(),
+                cmd.event_type(),
+                serde_json::to_value(&cmd).unwrap(),
             );
             (entity, ctx, event)
         }
@@ -145,11 +150,11 @@ pub fn decompose(bookmark: &PayerPay, seq: i32) -> (EntitySnapshot, FlowContext,
                 id: w.txn.id,
                 req: w.txn.data.req,
             });
-            let request = NotifyRequest { status: Status::Processing };
-            let event = EventData::new(
+            let cmd = UserCommand::Notify { status: Status::Processing };
+            let event = EventData::user_command(
                 seq,
-                EventType::Notify.as_str(),
-                serde_json::to_value(&request).unwrap(),
+                cmd.event_type(),
+                serde_json::to_value(&cmd).unwrap(),
             );
             (entity, ctx, event)
         }
@@ -159,11 +164,15 @@ pub fn decompose(bookmark: &PayerPay, seq: i32) -> (EntitySnapshot, FlowContext,
                 id: w.txn.id,
                 req: w.txn.data.req,
             });
-            let request = AwaitDeemedResolutionRequest { deadline_days: DEEMED_DEADLINE_DAYS };
+            // AwaitDeemedResolution is waiting for SystemAsyncCallback
             let event = EventData::new(
                 seq,
-                EventType::AwaitDeemedResolution.as_str(),
-                serde_json::to_value(&request).unwrap(),
+                Direction::In,
+                TargetSource::System,
+                InitiatedBy::Them,
+                Timing::AsyncCallback,
+                "AwaitDeemedResolution",
+                serde_json::json!({"deadline_days": DEEMED_DEADLINE_DAYS}),
             );
             (entity, ctx, event)
         }
@@ -173,11 +182,11 @@ pub fn decompose(bookmark: &PayerPay, seq: i32) -> (EntitySnapshot, FlowContext,
                 id: w.txn.id,
                 req: w.txn.data.req,
             });
-            let request = NotifyRequest { status: Status::Confirmed };
-            let event = EventData::new(
+            let cmd = UserCommand::Notify { status: Status::Confirmed };
+            let event = EventData::user_command(
                 seq,
-                EventType::Notify.as_str(),
-                serde_json::to_value(&request).unwrap(),
+                cmd.event_type(),
+                serde_json::to_value(&cmd).unwrap(),
             );
             (entity, ctx, event)
         }
@@ -187,11 +196,11 @@ pub fn decompose(bookmark: &PayerPay, seq: i32) -> (EntitySnapshot, FlowContext,
                 id: w.txn.id,
                 req: w.txn.data.req,
             });
-            let request = NotifyRequest { status: Status::Reversed };
-            let event = EventData::new(
+            let cmd = UserCommand::Notify { status: Status::Reversed };
+            let event = EventData::user_command(
                 seq,
-                EventType::Notify.as_str(),
-                serde_json::to_value(&request).unwrap(),
+                cmd.event_type(),
+                serde_json::to_value(&cmd).unwrap(),
             );
             (entity, ctx, event)
         }
@@ -201,11 +210,11 @@ pub fn decompose(bookmark: &PayerPay, seq: i32) -> (EntitySnapshot, FlowContext,
                 id: w.txn.id,
                 req: w.txn.data.req,
             });
-            let request = NotifyRequest { status: Status::ReversalInProgress };
-            let event = EventData::new(
+            let cmd = UserCommand::Notify { status: Status::ReversalInProgress };
+            let event = EventData::user_command(
                 seq,
-                EventType::Notify.as_str(),
-                serde_json::to_value(&request).unwrap(),
+                cmd.event_type(),
+                serde_json::to_value(&cmd).unwrap(),
             );
             (entity, ctx, event)
         }
@@ -215,11 +224,15 @@ pub fn decompose(bookmark: &PayerPay, seq: i32) -> (EntitySnapshot, FlowContext,
                 id: w.txn.id,
                 req: w.txn.data.req,
             });
-            let request = AwaitForcedReversalRequest { deadline_days: FORCED_REVERSAL_DEADLINE_DAYS };
+            // AwaitForcedReversal is waiting for SystemAsyncCallback
             let event = EventData::new(
                 seq,
-                EventType::AwaitForcedReversal.as_str(),
-                serde_json::to_value(&request).unwrap(),
+                Direction::In,
+                TargetSource::System,
+                InitiatedBy::Them,
+                Timing::AsyncCallback,
+                "AwaitForcedReversal",
+                serde_json::json!({"deadline_days": FORCED_REVERSAL_DEADLINE_DAYS}),
             );
             (entity, ctx, event)
         }
@@ -229,11 +242,11 @@ pub fn decompose(bookmark: &PayerPay, seq: i32) -> (EntitySnapshot, FlowContext,
                 id: w.txn.id,
                 req: w.txn.data.req,
             });
-            let request = NotifyRequest { status: Status::Reversed };
-            let event = EventData::new(
+            let cmd = UserCommand::Notify { status: Status::Reversed };
+            let event = EventData::user_command(
                 seq,
-                EventType::Notify.as_str(),
-                serde_json::to_value(&request).unwrap(),
+                cmd.event_type(),
+                serde_json::to_value(&cmd).unwrap(),
             );
             (entity, ctx, event)
         }
@@ -279,12 +292,11 @@ mod tests {
         ));
         assert_eq!(ctx, FlowContext::default());
         assert_eq!(event.seq, 0);
+        assert_eq!(event.direction, Direction::Out);
+        assert_eq!(event.target_source, TargetSource::User);
+        assert_eq!(event.initiated_by, InitiatedBy::Us);
+        assert_eq!(event.timing, Timing::Command);
         assert_eq!(event.event_type, "GetPaymentIntent");
-        assert_eq!(event.status, EventStatus::Awaiting);
-
-        // Verify JSON contains payer
-        let req: GetPaymentIntentRequest = serde_json::from_value(event.request_body).unwrap();
-        assert_eq!(req.payer, PayerId(42));
     }
 
     #[test]
@@ -301,10 +313,42 @@ mod tests {
         assert!(matches!(entity, EntitySnapshot::Initiated(_)));
         assert_eq!(event.seq, 1);
         assert_eq!(event.event_type, "CollectMpin");
+        assert_eq!(event.direction, Direction::Out);
+        assert_eq!(event.target_source, TargetSource::User);
+    }
 
-        // Verify JSON contains intent
-        let req: CollectMpinRequest = serde_json::from_value(event.request_body).unwrap();
-        assert_eq!(req.intent, intent);
-        assert_eq!(req.payer, PayerId(42));
+    #[test]
+    fn test_decompose_at_req_pay() {
+        let txn = Txn::new(TxnId(1), PayerId(42));
+        let intent = ValidIntent { payee: Vpa(100), amount: Amount(5000) };
+        let auth_txn = txn.authenticate(intent, Mpin(1234));
+        let req = auth_txn.build_req_pay();
+        let bookmark = PayerPay::AtReqPay(AtReqPay { txn: auth_txn, req });
+
+        let (entity, _ctx, event) = decompose(&bookmark, 2);
+
+        assert!(matches!(entity, EntitySnapshot::Authenticated(_)));
+        assert_eq!(event.event_type, "ReqPay");
+        assert_eq!(event.direction, Direction::Out);
+        assert_eq!(event.target_source, TargetSource::System);
+        assert_eq!(event.timing, Timing::Command);
+    }
+
+    #[test]
+    fn test_decompose_at_await_callback() {
+        let txn = Txn::new(TxnId(1), PayerId(42));
+        let intent = ValidIntent { payee: Vpa(100), amount: Amount(5000) };
+        let auth_txn = txn.authenticate(intent, Mpin(1234));
+        let req = auth_txn.build_req_pay();
+        let sub_txn = auth_txn.submit(req);
+        let bookmark = PayerPay::AtAwaitCallback(AtAwaitCallback { txn: sub_txn });
+
+        let (entity, _ctx, event) = decompose(&bookmark, 3);
+
+        assert!(matches!(entity, EntitySnapshot::Submitted(_)));
+        assert_eq!(event.event_type, "AwaitCallback");
+        assert_eq!(event.direction, Direction::In);
+        assert_eq!(event.target_source, TargetSource::System);
+        assert_eq!(event.timing, Timing::AsyncCallback);
     }
 }
