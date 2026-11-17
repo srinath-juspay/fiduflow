@@ -99,12 +99,14 @@ impl FlowEvent {
     /// Get the method/nature of this event.
     pub fn method(&self) -> Method {
         match self {
-            FlowEvent::UserCommand(_) | FlowEvent::SystemCommand(_) => Method::Command,
-            FlowEvent::UserRequest(_) => Method::Request,
-            FlowEvent::SystemNotification(_) => Method::Notification,
-            FlowEvent::UserSyncAck(_) | FlowEvent::SystemSyncAck(_) => Method::SyncAck,
-            FlowEvent::UserAsyncResponse(_) => Method::AsyncResponse,
-            FlowEvent::SystemAsyncCallback(_) => Method::AsyncCallback,
+            // Requests (initiate interaction)
+            FlowEvent::UserCommand(_) | FlowEvent::SystemCommand(_) | FlowEvent::UserRequest(_) => Method::Request,
+            // Acknowledgments (sync response)
+            FlowEvent::UserSyncAck(_) | FlowEvent::SystemSyncAck(_) => Method::Ack,
+            // Async responses
+            FlowEvent::UserAsyncResponse(_) | FlowEvent::SystemAsyncCallback(_) => Method::AsyncResponse,
+            // Notifications (one-way)
+            FlowEvent::SystemNotification(_) => Method::Notify,
         }
     }
 

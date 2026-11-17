@@ -25,8 +25,14 @@ pub struct Model {
     pub source: String,
     /// Target actor: 'User' | 'ThisSystem' | 'ExternalSystem'
     pub target: String,
-    /// Method: 'Command' | 'Request' | 'Notification' | 'SyncAck' | 'AsyncResponse' | 'AsyncCallback'
+    /// Method: 'Request' | 'Ack' | 'AsyncResponse' | 'Notify'
     pub method: String,
+
+    // === Correlation ===
+    /// For Ack/AsyncResponse: seq of the Request this responds to.
+    pub in_response_to: Option<i32>,
+    /// For Request: whether AsyncResponse is expected after Ack.
+    pub expects_async: bool,
 
     // === Payload ===
     /// Event type name.

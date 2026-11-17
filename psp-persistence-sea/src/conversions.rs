@@ -236,6 +236,9 @@ pub fn event_to_model(txn_id: TxnId, event: &EventData) -> events::ActiveModel {
         source: Set(event.source.as_str().to_string()),
         target: Set(event.target.as_str().to_string()),
         method: Set(event.method.as_str().to_string()),
+        // Correlation
+        in_response_to: Set(event.in_response_to),
+        expects_async: Set(event.expects_async),
         // Payload
         event_type: Set(event.event_type.clone()),
         event_body: Set(serde_json::to_string(&event.event_body).unwrap()),
@@ -264,6 +267,8 @@ pub fn model_to_event(model: &events::Model) -> Result<EventData, ConversionErro
         source,
         target,
         method,
+        in_response_to: model.in_response_to,
+        expects_async: model.expects_async,
         event_type: model.event_type.clone(),
         event_body,
         status,

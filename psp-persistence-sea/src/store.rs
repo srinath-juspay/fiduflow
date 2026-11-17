@@ -84,6 +84,9 @@ impl SeaFlowStore {
                 source TEXT NOT NULL,
                 target TEXT NOT NULL,
                 method TEXT NOT NULL,
+                -- Correlation
+                in_response_to INTEGER,
+                expects_async INTEGER NOT NULL DEFAULT 0,
                 -- Payload
                 event_type TEXT NOT NULL,
                 event_body TEXT NOT NULL,
@@ -320,7 +323,8 @@ mod tests {
         store.save_entity(id, &entity).await.unwrap();
 
         let cmd = UserCommand::GetPaymentIntent { payer: PayerId(42) };
-        let event = EventData::user_command(
+        // Request to user, expects async response
+        let event = EventData::request_to_user_async(
             0,
             cmd.event_type(),
             serde_json::to_value(&cmd).unwrap(),
@@ -333,7 +337,8 @@ mod tests {
         assert_eq!(events[0].event_type, "GetPaymentIntent");
         assert_eq!(events[0].source, Actor::ThisSystem);
         assert_eq!(events[0].target, Actor::User);
-        assert_eq!(events[0].method, Method::Command);
+        assert_eq!(events[0].method, Method::Request);
+        assert!(events[0].expects_async);
     }
 
     #[tokio::test]

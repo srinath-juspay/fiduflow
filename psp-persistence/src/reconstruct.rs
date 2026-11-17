@@ -31,11 +31,11 @@ fn find_pending_event(events: &[EventData]) -> Option<&EventData> {
     events.iter().find(|e| e.is_pending())
 }
 
-/// Extract success refs from previous system async callback.
+/// Extract success refs from previous system async response.
 fn extract_success_refs(events: &[EventData]) -> Result<(Ref, Ref), ReconstructError> {
     for event in events {
-        // Look for ExternalSystem → ThisSystem async callback
-        if event.method == Method::AsyncCallback && event.source == Actor::ExternalSystem {
+        // Look for ExternalSystem → ThisSystem async response
+        if event.method == Method::AsyncResponse && event.source == Actor::ExternalSystem {
             if let Ok(callback) = serde_json::from_value::<SystemAsyncCallback>(event.event_body.clone()) {
                 if let SystemAsyncCallback::PaymentSuccess { debit_ref, credit_ref } = callback {
                     return Ok((debit_ref, credit_ref));
@@ -49,8 +49,8 @@ fn extract_success_refs(events: &[EventData]) -> Result<(Ref, Ref), ReconstructE
 /// Extract credit_ref from deemed resolution callback.
 fn extract_confirmed_credit_ref(events: &[EventData]) -> Result<Ref, ReconstructError> {
     for event in events {
-        // Look for ExternalSystem → ThisSystem async callback
-        if event.method == Method::AsyncCallback && event.source == Actor::ExternalSystem {
+        // Look for ExternalSystem → ThisSystem async response
+        if event.method == Method::AsyncResponse && event.source == Actor::ExternalSystem {
             if let Ok(callback) = serde_json::from_value::<SystemAsyncCallback>(event.event_body.clone()) {
                 if let SystemAsyncCallback::DeemedSuccess { credit_ref } = callback {
                     return Ok(credit_ref);
@@ -344,8 +344,9 @@ mod tests {
             debit_ref: Ref(1001),
             credit_ref: Ref(2002),
         };
-        let mut callback_event = EventData::system_async_callback(
+        let mut callback_event = EventData::async_response_from_system(
             0,
+            0, // in_response_to
             "PaymentSuccess",
             serde_json::to_value(&callback).unwrap(),
         );
@@ -387,8 +388,9 @@ mod tests {
         let (entity, ctx, notify_event) = decompose(&bookmark, 1);
 
         let callback = SystemAsyncCallback::DeemedSuccess { credit_ref: Ref(3003) };
-        let mut callback_event = EventData::system_async_callback(
+        let mut callback_event = EventData::async_response_from_system(
             0,
+            0, // in_response_to
             "DeemedSuccess",
             serde_json::to_value(&callback).unwrap(),
         );
@@ -436,7 +438,7 @@ mod tests {
             credit_ref: Ref(2),
         });
         let ctx = FlowContext::default();
-        let event = EventData::user_command(
+        let event = EventData::request_to_user(
             0,
             "Notify",
             serde_json::to_value(&UserCommand::Notify { status: Status::Successful }).unwrap(),
@@ -454,7 +456,7 @@ mod tests {
         });
         let ctx = FlowContext::default();
 
-        let mut event = EventData::user_command(
+        let mut event = EventData::request_to_user_async(
             0,
             "GetPaymentIntent",
             serde_json::to_value(&UserCommand::GetPaymentIntent { payer: PayerId(42) }).unwrap(),
@@ -475,11 +477,11 @@ mod tests {
 
         // Create an event that doesn't match the Initiated state
         // AwaitCallback is only valid in Submitted state
-        let event = EventData::new(
+        let event = EventData::async_response(
             0,
             Actor::ExternalSystem,
             Actor::ThisSystem,
-            Method::AsyncCallback,
+            0, // in_response_to
             "AwaitCallback",
             serde_json::json!({}),
         );
