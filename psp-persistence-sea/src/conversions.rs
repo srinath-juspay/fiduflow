@@ -4,7 +4,7 @@ use crate::models::{events, flow_context, upi_txn};
 use chrono::Utc;
 use psp_flow::values::*;
 use psp_persistence::entity::*;
-use psp_persistence::{Direction, EventData, EventStatus, FlowContext, InitiatedBy, TargetSource, Timing};
+use psp_persistence::{Actor, EventData, EventStatus, FlowContext, Method};
 use sea_orm::ActiveValue::Set;
 use thiserror::Error;
 
@@ -233,10 +233,9 @@ pub fn event_to_model(txn_id: TxnId, event: &EventData) -> events::ActiveModel {
         txn_id: Set(txn_id.0 as i64),
         seq: Set(event.seq),
         // Classification columns
-        direction: Set(event.direction.as_str().to_string()),
-        target_source: Set(event.target_source.as_str().to_string()),
-        initiated_by: Set(event.initiated_by.as_str().to_string()),
-        timing: Set(event.timing.as_str().to_string()),
+        source: Set(event.source.as_str().to_string()),
+        target: Set(event.target.as_str().to_string()),
+        method: Set(event.method.as_str().to_string()),
         // Payload
         event_type: Set(event.event_type.clone()),
         event_body: Set(serde_json::to_string(&event.event_body).unwrap()),
@@ -251,23 +250,20 @@ pub fn model_to_event(model: &events::Model) -> Result<EventData, ConversionErro
     let status = EventStatus::from_str(&model.status)
         .ok_or_else(|| ConversionError::InvalidEventStatus(model.status.clone()))?;
 
-    let direction = Direction::from_str(&model.direction)
-        .ok_or_else(|| ConversionError::InvalidState(format!("Invalid direction: {}", model.direction)))?;
-    let target_source = TargetSource::from_str(&model.target_source)
-        .ok_or_else(|| ConversionError::InvalidState(format!("Invalid target_source: {}", model.target_source)))?;
-    let initiated_by = InitiatedBy::from_str(&model.initiated_by)
-        .ok_or_else(|| ConversionError::InvalidState(format!("Invalid initiated_by: {}", model.initiated_by)))?;
-    let timing = Timing::from_str(&model.timing)
-        .ok_or_else(|| ConversionError::InvalidState(format!("Invalid timing: {}", model.timing)))?;
+    let source = Actor::from_str(&model.source)
+        .ok_or_else(|| ConversionError::InvalidState(format!("Invalid source: {}", model.source)))?;
+    let target = Actor::from_str(&model.target)
+        .ok_or_else(|| ConversionError::InvalidState(format!("Invalid target: {}", model.target)))?;
+    let method = Method::from_str(&model.method)
+        .ok_or_else(|| ConversionError::InvalidState(format!("Invalid method: {}", model.method)))?;
 
     let event_body: serde_json::Value = serde_json::from_str(&model.event_body)?;
 
     Ok(EventData {
         seq: model.seq,
-        direction,
-        target_source,
-        initiated_by,
-        timing,
+        source,
+        target,
+        method,
         event_type: model.event_type.clone(),
         event_body,
         status,

@@ -81,10 +81,9 @@ impl SeaFlowStore {
                 txn_id INTEGER NOT NULL,
                 seq INTEGER NOT NULL,
                 -- Classification
-                direction TEXT NOT NULL,
-                target_source TEXT NOT NULL,
-                initiated_by TEXT NOT NULL,
-                timing TEXT NOT NULL,
+                source TEXT NOT NULL,
+                target TEXT NOT NULL,
+                method TEXT NOT NULL,
                 -- Payload
                 event_type TEXT NOT NULL,
                 event_body TEXT NOT NULL,
@@ -283,7 +282,7 @@ mod tests {
     use psp_flow::persist::UserCommand;
     use psp_flow::values::*;
     use psp_persistence::entity::InitiatedEntity;
-    use psp_persistence::{Direction, InitiatedBy, TargetSource, Timing};
+    use psp_persistence::{Actor, Method};
     use sea_orm::Database;
 
     async fn setup_test_db() -> SeaFlowStore {
@@ -332,10 +331,9 @@ mod tests {
         assert_eq!(events.len(), 1);
         assert_eq!(events[0].seq, 0);
         assert_eq!(events[0].event_type, "GetPaymentIntent");
-        assert_eq!(events[0].direction, Direction::Out);
-        assert_eq!(events[0].target_source, TargetSource::User);
-        assert_eq!(events[0].initiated_by, InitiatedBy::Us);
-        assert_eq!(events[0].timing, Timing::Command);
+        assert_eq!(events[0].source, Actor::ThisSystem);
+        assert_eq!(events[0].target, Actor::User);
+        assert_eq!(events[0].method, Method::Command);
     }
 
     #[tokio::test]

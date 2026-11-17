@@ -2,10 +2,9 @@
 //!
 //! These types are domain-agnostic and can be used with any flow.
 //! Event classification:
-//! - Direction: Out (we send) | In (we receive)
-//! - Target/Source: User | System
-//! - Initiated by: Us | Them
-//! - Timing: Command | Request | Notification | SyncAck | AsyncResponse | AsyncCallback
+//! - Source: User | ThisSystem | ExternalSystem
+//! - Target: User | ThisSystem | ExternalSystem
+//! - Method: Command | Request | Notification | SyncAck | AsyncResponse | AsyncCallback
 
 use serde::{Deserialize, Serialize};
 use serde_json::Value as JsonValue;
@@ -36,119 +35,73 @@ impl EventStatus {
     }
 }
 
-/// Direction of the event relative to our system.
+/// An actor in the event flow.
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, Serialize, Deserialize)]
-pub enum Direction {
-    /// We send (outgoing)
-    Out,
-    /// We receive (incoming)
-    In,
-}
-
-impl Direction {
-    pub fn as_str(&self) -> &'static str {
-        match self {
-            Direction::Out => "Out",
-            Direction::In => "In",
-        }
-    }
-
-    pub fn from_str(s: &str) -> Option<Direction> {
-        match s {
-            "Out" => Some(Direction::Out),
-            "In" => Some(Direction::In),
-            _ => None,
-        }
-    }
-}
-
-/// Target (for outgoing) or Source (for incoming).
-#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, Serialize, Deserialize)]
-pub enum TargetSource {
+pub enum Actor {
+    /// End user (customer, client app)
     User,
-    System,
+    /// This system (our application)
+    ThisSystem,
+    /// External system (switch, bank, third-party service)
+    ExternalSystem,
 }
 
-impl TargetSource {
+impl Actor {
     pub fn as_str(&self) -> &'static str {
         match self {
-            TargetSource::User => "User",
-            TargetSource::System => "System",
+            Actor::User => "User",
+            Actor::ThisSystem => "ThisSystem",
+            Actor::ExternalSystem => "ExternalSystem",
         }
     }
 
-    pub fn from_str(s: &str) -> Option<TargetSource> {
+    pub fn from_str(s: &str) -> Option<Actor> {
         match s {
-            "User" => Some(TargetSource::User),
-            "System" => Some(TargetSource::System),
+            "User" => Some(Actor::User),
+            "ThisSystem" => Some(Actor::ThisSystem),
+            "ExternalSystem" => Some(Actor::ExternalSystem),
             _ => None,
         }
     }
 }
 
-/// Who initiated this event.
+/// The method/nature of the event interaction.
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, Serialize, Deserialize)]
-pub enum InitiatedBy {
-    /// We initiated
-    Us,
-    /// They initiated
-    Them,
-}
-
-impl InitiatedBy {
-    pub fn as_str(&self) -> &'static str {
-        match self {
-            InitiatedBy::Us => "Us",
-            InitiatedBy::Them => "Them",
-        }
-    }
-
-    pub fn from_str(s: &str) -> Option<InitiatedBy> {
-        match s {
-            "Us" => Some(InitiatedBy::Us),
-            "Them" => Some(InitiatedBy::Them),
-            _ => None,
-        }
-    }
-}
-
-/// Timing/nature of the event.
-#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, Serialize, Deserialize)]
-pub enum Timing {
-    /// Outgoing command (we send, expect response)
+pub enum Method {
+    /// Command (initiates an interaction, expects response)
     Command,
-    /// Incoming request (they initiate, not response to our command)
+    /// Request (they initiate, not a response to our command)
     Request,
-    /// Incoming notification (they notify, unsolicited)
+    /// Notification (unsolicited, informational)
     Notification,
-    /// Incoming sync ack (immediate response to our command)
+    /// SyncAck (immediate acknowledgment to a command)
     SyncAck,
-    /// Incoming async response (delayed response to our command)
+    /// AsyncResponse (delayed response with data)
     AsyncResponse,
-    /// Incoming async callback (async result from system)
+    /// AsyncCallback (async result from external processing)
     AsyncCallback,
 }
 
-impl Timing {
+impl Method {
     pub fn as_str(&self) -> &'static str {
         match self {
-            Timing::Command => "Command",
-            Timing::Request => "Request",
-            Timing::Notification => "Notification",
-            Timing::SyncAck => "SyncAck",
-            Timing::AsyncResponse => "AsyncResponse",
-            Timing::AsyncCallback => "AsyncCallback",
+            Method::Command => "Command",
+            Method::Request => "Request",
+            Method::Notification => "Notification",
+            Method::SyncAck => "SyncAck",
+            Method::AsyncResponse => "AsyncResponse",
+            Method::AsyncCallback => "AsyncCallback",
         }
     }
 
-    pub fn from_str(s: &str) -> Option<Timing> {
+    pub fn from_str(s: &str) -> Option<Method> {
         match s {
-            "Command" => Some(Timing::Command),
-            "Request" => Some(Timing::Request),
-            "Notification" => Some(Timing::Notification),
-            "SyncAck" => Some(Timing::SyncAck),
-            "AsyncResponse" => Some(Timing::AsyncResponse),
-            "AsyncCallback" => Some(Timing::AsyncCallback),
+            "Command" => Some(Method::Command),
+            "Request" => Some(Method::Request),
+            "Notification" => Some(Method::Notification),
+            "SyncAck" => Some(Method::SyncAck),
+            "AsyncResponse" => Some(Method::AsyncResponse),
+            "AsyncCallback" => Some(Method::AsyncCallback),
             _ => None,
         }
     }
@@ -157,22 +110,19 @@ impl Timing {
 /// A generic event data record for persistence.
 ///
 /// This structure stores event metadata with classification
-/// (direction, target/source, initiated_by, timing) along with
-/// the event body as JSON.
+/// (source, target, method) along with the event body as JSON.
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
 pub struct EventData {
     /// Sequence number within the transaction (0-indexed).
     pub seq: i32,
 
     // === Classification ===
-    /// Direction: Out (we send) or In (we receive).
-    pub direction: Direction,
-    /// Target (if Out) or Source (if In): User or System.
-    pub target_source: TargetSource,
-    /// Who initiated: Us or Them.
-    pub initiated_by: InitiatedBy,
-    /// Timing/nature of the event.
-    pub timing: Timing,
+    /// Source actor: who sent this event.
+    pub source: Actor,
+    /// Target actor: who receives this event.
+    pub target: Actor,
+    /// Method: the nature of this event interaction.
+    pub method: Method,
 
     // === Payload ===
     /// The specific event type name.
@@ -189,111 +139,114 @@ impl EventData {
     /// Create a new event data record.
     pub fn new(
         seq: i32,
-        direction: Direction,
-        target_source: TargetSource,
-        initiated_by: InitiatedBy,
-        timing: Timing,
+        source: Actor,
+        target: Actor,
+        method: Method,
         event_type: impl Into<String>,
         event_body: JsonValue,
     ) -> Self {
         Self {
             seq,
-            direction,
-            target_source,
-            initiated_by,
-            timing,
+            source,
+            target,
+            method,
             event_type: event_type.into(),
             event_body,
             status: EventStatus::Pending,
         }
     }
 
-    /// Create an outgoing user command event.
+    /// Create an outgoing user command event (ThisSystem → User).
     pub fn user_command(seq: i32, event_type: impl Into<String>, body: JsonValue) -> Self {
         Self::new(
             seq,
-            Direction::Out,
-            TargetSource::User,
-            InitiatedBy::Us,
-            Timing::Command,
+            Actor::ThisSystem,
+            Actor::User,
+            Method::Command,
             event_type,
             body,
         )
     }
 
-    /// Create an outgoing system command event.
+    /// Create an outgoing system command event (ThisSystem → ExternalSystem).
     pub fn system_command(seq: i32, event_type: impl Into<String>, body: JsonValue) -> Self {
         Self::new(
             seq,
-            Direction::Out,
-            TargetSource::System,
-            InitiatedBy::Us,
-            Timing::Command,
+            Actor::ThisSystem,
+            Actor::ExternalSystem,
+            Method::Command,
             event_type,
             body,
         )
     }
 
-    /// Create an incoming user request event.
+    /// Create an incoming user request event (User → ThisSystem).
     pub fn user_request(seq: i32, event_type: impl Into<String>, body: JsonValue) -> Self {
         Self::new(
             seq,
-            Direction::In,
-            TargetSource::User,
-            InitiatedBy::Them,
-            Timing::Request,
+            Actor::User,
+            Actor::ThisSystem,
+            Method::Request,
             event_type,
             body,
         )
     }
 
-    /// Create an incoming user sync ack event.
+    /// Create an incoming user sync ack event (User → ThisSystem).
     pub fn user_sync_ack(seq: i32, event_type: impl Into<String>, body: JsonValue) -> Self {
         Self::new(
             seq,
-            Direction::In,
-            TargetSource::User,
-            InitiatedBy::Them,
-            Timing::SyncAck,
+            Actor::User,
+            Actor::ThisSystem,
+            Method::SyncAck,
             event_type,
             body,
         )
     }
 
-    /// Create an incoming user async response event.
+    /// Create an incoming user async response event (User → ThisSystem).
     pub fn user_async_response(seq: i32, event_type: impl Into<String>, body: JsonValue) -> Self {
         Self::new(
             seq,
-            Direction::In,
-            TargetSource::User,
-            InitiatedBy::Them,
-            Timing::AsyncResponse,
+            Actor::User,
+            Actor::ThisSystem,
+            Method::AsyncResponse,
             event_type,
             body,
         )
     }
 
-    /// Create an incoming system sync ack event.
+    /// Create an incoming system sync ack event (ExternalSystem → ThisSystem).
     pub fn system_sync_ack(seq: i32, event_type: impl Into<String>, body: JsonValue) -> Self {
         Self::new(
             seq,
-            Direction::In,
-            TargetSource::System,
-            InitiatedBy::Them,
-            Timing::SyncAck,
+            Actor::ExternalSystem,
+            Actor::ThisSystem,
+            Method::SyncAck,
             event_type,
             body,
         )
     }
 
-    /// Create an incoming system async callback event.
+    /// Create an incoming system async callback event (ExternalSystem → ThisSystem).
     pub fn system_async_callback(seq: i32, event_type: impl Into<String>, body: JsonValue) -> Self {
         Self::new(
             seq,
-            Direction::In,
-            TargetSource::System,
-            InitiatedBy::Them,
-            Timing::AsyncCallback,
+            Actor::ExternalSystem,
+            Actor::ThisSystem,
+            Method::AsyncCallback,
+            event_type,
+            body,
+        )
+    }
+
+    /// Create a system notification event (ExternalSystem → ThisSystem).
+    pub fn system_notification(seq: i32, event_type: impl Into<String>, body: JsonValue) -> Self {
+        Self::new(
+            seq,
+            Actor::ExternalSystem,
+            Actor::ThisSystem,
+            Method::Notification,
             event_type,
             body,
         )

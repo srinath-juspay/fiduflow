@@ -23,4 +23,4 @@ pub use machine::{Event, Flow, Next, Refused, Stored, WaitPoint};
 #[cfg(feature = "persist")]
 pub use context::ContextData;
 #[cfg(feature = "persist")]
-pub use event::{Direction, EventData, EventStatus, InitiatedBy, TargetSource, Timing};
+pub use event::{Actor, EventData, EventStatus, Method};

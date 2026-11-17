@@ -8,7 +8,7 @@ pub use psp_flow::persist::{
     // Top-level event enum
     FlowEvent,
     // Classification enums (also in driver_framework)
-    Direction, InitiatedBy, TargetSource, Timing,
+    Actor, Method,
     // Outgoing commands
     UserCommand, SystemCommand,
     // Incoming user-initiated

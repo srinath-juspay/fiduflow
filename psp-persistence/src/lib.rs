@@ -21,7 +21,7 @@ pub use event_data::{
     // Generic storage types
     EventData, EventStatus,
     // Classification enums
-    Direction, InitiatedBy, TargetSource, Timing,
+    Actor, Method,
     // Categorized event types
     FlowEvent,
     UserCommand, SystemCommand,

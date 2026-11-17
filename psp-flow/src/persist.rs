@@ -2,19 +2,17 @@
 //!
 //! This module provides:
 //! - `FlowContext`: Cross-segment locals (e.g., is_high_value)
-//! - `FlowEvent`: Categorized events (direction, target/source, initiated_by, timing)
+//! - `FlowEvent`: Categorized events (source, target, method)
 //!
 //! Event classification (re-exported from driver-framework):
-//! - Direction: Out (we send) | In (we receive)
-//! - Target/Source: User | System
-//! - Initiated by: Us | Them
-//! - Timing: Command | Request | Notification | SyncAck | AsyncResponse | AsyncCallback
+//! - Source/Target: User | ThisSystem | ExternalSystem
+//! - Method: Command | Request | Notification | SyncAck | AsyncResponse | AsyncCallback
 
 use crate::values::*;
 use serde::{Deserialize, Serialize};
 
 // Re-export classification types from driver-framework for consistent usage
-pub use driver_framework::{Direction, EventData, EventStatus, InitiatedBy, TargetSource, Timing};
+pub use driver_framework::{Actor, EventData, EventStatus, Method};
 
 // ============================================================================
 // Flow Context (cross-segment locals)
@@ -46,79 +44,67 @@ pub const HIGH_VALUE_THRESHOLD: u64 = 100_000;
 // Flow Event (top-level categorized enum)
 // ============================================================================
 
-/// All flow events - categorized by direction, target/source, initiator, timing.
+/// All flow events - categorized by source, target, method.
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
 pub enum FlowEvent {
-    // ======= OUTGOING (we send) =======
+    // ======= OUTGOING (ThisSystem → ...) =======
 
     /// Command to user (expects sync ack, may have async response)
     UserCommand(UserCommand),
-    /// Command to system (expects sync ack, may have async callback)
+    /// Command to external system (expects sync ack, may have async callback)
     SystemCommand(SystemCommand),
 
-    // ======= INCOMING (they initiate) =======
+    // ======= INCOMING (... → ThisSystem, they initiate) =======
 
     /// User initiates request (not a response to our command)
     UserRequest(UserRequest),
-    /// System sends notification (unsolicited)
+    /// External system sends notification (unsolicited)
     SystemNotification(SystemNotification),
 
-    // ======= INCOMING (response to our command) =======
+    // ======= INCOMING (... → ThisSystem, response to our command) =======
 
     /// Sync ack from user (command accepted/rejected)
     UserSyncAck(UserSyncAck),
     /// Async response from user (actual data/completion)
     UserAsyncResponse(UserAsyncResponse),
-    /// Sync ack from system (command accepted/rejected)
+    /// Sync ack from external system (command accepted/rejected)
     SystemSyncAck(SystemSyncAck),
-    /// Async callback from system (result of async processing)
+    /// Async callback from external system (result of async processing)
     SystemAsyncCallback(SystemAsyncCallback),
 }
 
 impl FlowEvent {
-    /// Get the direction of this event.
-    pub fn direction(&self) -> Direction {
+    /// Get the source actor of this event.
+    pub fn source(&self) -> Actor {
         match self {
-            FlowEvent::UserCommand(_) | FlowEvent::SystemCommand(_) => Direction::Out,
-            _ => Direction::In,
-        }
-    }
-
-    /// Get the target (outgoing) or source (incoming).
-    pub fn target_source(&self) -> TargetSource {
-        match self {
-            FlowEvent::UserCommand(_)
-            | FlowEvent::UserRequest(_)
+            FlowEvent::UserCommand(_) | FlowEvent::SystemCommand(_) => Actor::ThisSystem,
+            FlowEvent::UserRequest(_)
             | FlowEvent::UserSyncAck(_)
-            | FlowEvent::UserAsyncResponse(_) => TargetSource::User,
-            FlowEvent::SystemCommand(_)
-            | FlowEvent::SystemNotification(_)
+            | FlowEvent::UserAsyncResponse(_) => Actor::User,
+            FlowEvent::SystemNotification(_)
             | FlowEvent::SystemSyncAck(_)
-            | FlowEvent::SystemAsyncCallback(_) => TargetSource::System,
+            | FlowEvent::SystemAsyncCallback(_) => Actor::ExternalSystem,
         }
     }
 
-    /// Get who initiated this event.
-    pub fn initiated_by(&self) -> InitiatedBy {
+    /// Get the target actor of this event.
+    pub fn target(&self) -> Actor {
         match self {
-            FlowEvent::UserCommand(_) | FlowEvent::SystemCommand(_) => InitiatedBy::Us,
-            FlowEvent::UserRequest(_) | FlowEvent::SystemNotification(_) => InitiatedBy::Them,
-            FlowEvent::UserSyncAck(_)
-            | FlowEvent::UserAsyncResponse(_)
-            | FlowEvent::SystemSyncAck(_)
-            | FlowEvent::SystemAsyncCallback(_) => InitiatedBy::Them,
+            FlowEvent::UserCommand(_) => Actor::User,
+            FlowEvent::SystemCommand(_) => Actor::ExternalSystem,
+            _ => Actor::ThisSystem,
         }
     }
 
-    /// Get the timing/nature of this event.
-    pub fn timing(&self) -> Timing {
+    /// Get the method/nature of this event.
+    pub fn method(&self) -> Method {
         match self {
-            FlowEvent::UserCommand(_) | FlowEvent::SystemCommand(_) => Timing::Command,
-            FlowEvent::UserRequest(_) => Timing::Request,
-            FlowEvent::SystemNotification(_) => Timing::Notification,
-            FlowEvent::UserSyncAck(_) | FlowEvent::SystemSyncAck(_) => Timing::SyncAck,
-            FlowEvent::UserAsyncResponse(_) => Timing::AsyncResponse,
-            FlowEvent::SystemAsyncCallback(_) => Timing::AsyncCallback,
+            FlowEvent::UserCommand(_) | FlowEvent::SystemCommand(_) => Method::Command,
+            FlowEvent::UserRequest(_) => Method::Request,
+            FlowEvent::SystemNotification(_) => Method::Notification,
+            FlowEvent::UserSyncAck(_) | FlowEvent::SystemSyncAck(_) => Method::SyncAck,
+            FlowEvent::UserAsyncResponse(_) => Method::AsyncResponse,
+            FlowEvent::SystemAsyncCallback(_) => Method::AsyncCallback,
         }
     }
 

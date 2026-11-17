@@ -103,14 +103,12 @@ pub fn decompose(bookmark: &PayerPay, seq: i32) -> (EntitySnapshot, FlowContext,
                 id: w.txn.id,
                 req: w.txn.data.req,
             });
-            // AwaitCallback is waiting for SystemAsyncCallback
-            // We store it as a system command placeholder (the ReqPay was already sent)
+            // AwaitCallback is waiting for SystemAsyncCallback (ExternalSystem → ThisSystem)
             let event = EventData::new(
                 seq,
-                Direction::In,
-                TargetSource::System,
-                InitiatedBy::Them,
-                Timing::AsyncCallback,
+                Actor::ExternalSystem,
+                Actor::ThisSystem,
+                Method::AsyncCallback,
                 "AwaitCallback",
                 serde_json::json!({"timeout_secs": CALLBACK_TIMEOUT_SECS}),
             );
@@ -164,13 +162,12 @@ pub fn decompose(bookmark: &PayerPay, seq: i32) -> (EntitySnapshot, FlowContext,
                 id: w.txn.id,
                 req: w.txn.data.req,
             });
-            // AwaitDeemedResolution is waiting for SystemAsyncCallback
+            // AwaitDeemedResolution is waiting for SystemAsyncCallback (ExternalSystem → ThisSystem)
             let event = EventData::new(
                 seq,
-                Direction::In,
-                TargetSource::System,
-                InitiatedBy::Them,
-                Timing::AsyncCallback,
+                Actor::ExternalSystem,
+                Actor::ThisSystem,
+                Method::AsyncCallback,
                 "AwaitDeemedResolution",
                 serde_json::json!({"deadline_days": DEEMED_DEADLINE_DAYS}),
             );
@@ -224,13 +221,12 @@ pub fn decompose(bookmark: &PayerPay, seq: i32) -> (EntitySnapshot, FlowContext,
                 id: w.txn.id,
                 req: w.txn.data.req,
             });
-            // AwaitForcedReversal is waiting for SystemAsyncCallback
+            // AwaitForcedReversal is waiting for SystemAsyncCallback (ExternalSystem → ThisSystem)
             let event = EventData::new(
                 seq,
-                Direction::In,
-                TargetSource::System,
-                InitiatedBy::Them,
-                Timing::AsyncCallback,
+                Actor::ExternalSystem,
+                Actor::ThisSystem,
+                Method::AsyncCallback,
                 "AwaitForcedReversal",
                 serde_json::json!({"deadline_days": FORCED_REVERSAL_DEADLINE_DAYS}),
             );
@@ -292,10 +288,9 @@ mod tests {
         ));
         assert_eq!(ctx, FlowContext::default());
         assert_eq!(event.seq, 0);
-        assert_eq!(event.direction, Direction::Out);
-        assert_eq!(event.target_source, TargetSource::User);
-        assert_eq!(event.initiated_by, InitiatedBy::Us);
-        assert_eq!(event.timing, Timing::Command);
+        assert_eq!(event.source, Actor::ThisSystem);
+        assert_eq!(event.target, Actor::User);
+        assert_eq!(event.method, Method::Command);
         assert_eq!(event.event_type, "GetPaymentIntent");
     }
 
@@ -313,8 +308,8 @@ mod tests {
         assert!(matches!(entity, EntitySnapshot::Initiated(_)));
         assert_eq!(event.seq, 1);
         assert_eq!(event.event_type, "CollectMpin");
-        assert_eq!(event.direction, Direction::Out);
-        assert_eq!(event.target_source, TargetSource::User);
+        assert_eq!(event.source, Actor::ThisSystem);
+        assert_eq!(event.target, Actor::User);
     }
 
     #[test]
@@ -329,9 +324,9 @@ mod tests {
 
         assert!(matches!(entity, EntitySnapshot::Authenticated(_)));
         assert_eq!(event.event_type, "ReqPay");
-        assert_eq!(event.direction, Direction::Out);
-        assert_eq!(event.target_source, TargetSource::System);
-        assert_eq!(event.timing, Timing::Command);
+        assert_eq!(event.source, Actor::ThisSystem);
+        assert_eq!(event.target, Actor::ExternalSystem);
+        assert_eq!(event.method, Method::Command);
     }
 
     #[test]
@@ -347,8 +342,8 @@ mod tests {
 
         assert!(matches!(entity, EntitySnapshot::Submitted(_)));
         assert_eq!(event.event_type, "AwaitCallback");
-        assert_eq!(event.direction, Direction::In);
-        assert_eq!(event.target_source, TargetSource::System);
-        assert_eq!(event.timing, Timing::AsyncCallback);
+        assert_eq!(event.source, Actor::ExternalSystem);
+        assert_eq!(event.target, Actor::ThisSystem);
+        assert_eq!(event.method, Method::AsyncCallback);
     }
 }

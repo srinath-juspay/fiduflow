@@ -34,7 +34,8 @@ fn find_pending_event(events: &[EventData]) -> Option<&EventData> {
 /// Extract success refs from previous system async callback.
 fn extract_success_refs(events: &[EventData]) -> Result<(Ref, Ref), ReconstructError> {
     for event in events {
-        if event.timing == Timing::AsyncCallback && event.target_source == TargetSource::System {
+        // Look for ExternalSystem → ThisSystem async callback
+        if event.method == Method::AsyncCallback && event.source == Actor::ExternalSystem {
             if let Ok(callback) = serde_json::from_value::<SystemAsyncCallback>(event.event_body.clone()) {
                 if let SystemAsyncCallback::PaymentSuccess { debit_ref, credit_ref } = callback {
                     return Ok((debit_ref, credit_ref));
@@ -48,7 +49,8 @@ fn extract_success_refs(events: &[EventData]) -> Result<(Ref, Ref), ReconstructE
 /// Extract credit_ref from deemed resolution callback.
 fn extract_confirmed_credit_ref(events: &[EventData]) -> Result<Ref, ReconstructError> {
     for event in events {
-        if event.timing == Timing::AsyncCallback && event.target_source == TargetSource::System {
+        // Look for ExternalSystem → ThisSystem async callback
+        if event.method == Method::AsyncCallback && event.source == Actor::ExternalSystem {
             if let Ok(callback) = serde_json::from_value::<SystemAsyncCallback>(event.event_body.clone()) {
                 if let SystemAsyncCallback::DeemedSuccess { credit_ref } = callback {
                     return Ok(credit_ref);
@@ -471,12 +473,13 @@ mod tests {
         });
         let ctx = FlowContext::default();
 
+        // Create an event that doesn't match the Initiated state
+        // AwaitCallback is only valid in Submitted state
         let event = EventData::new(
             0,
-            Direction::In,
-            TargetSource::System,
-            InitiatedBy::Them,
-            Timing::AsyncCallback,
+            Actor::ExternalSystem,
+            Actor::ThisSystem,
+            Method::AsyncCallback,
             "AwaitCallback",
             serde_json::json!({}),
         );

@@ -21,14 +21,12 @@ pub struct Model {
     pub seq: i32,
 
     // === Classification ===
-    /// Direction: 'Out' | 'In'
-    pub direction: String,
-    /// Target/Source: 'User' | 'System'
-    pub target_source: String,
-    /// Initiated by: 'Us' | 'Them'
-    pub initiated_by: String,
-    /// Timing: 'Command' | 'Request' | 'Notification' | 'SyncAck' | 'AsyncResponse' | 'AsyncCallback'
-    pub timing: String,
+    /// Source actor: 'User' | 'ThisSystem' | 'ExternalSystem'
+    pub source: String,
+    /// Target actor: 'User' | 'ThisSystem' | 'ExternalSystem'
+    pub target: String,
+    /// Method: 'Command' | 'Request' | 'Notification' | 'SyncAck' | 'AsyncResponse' | 'AsyncCallback'
+    pub method: String,
 
     // === Payload ===
     /// Event type name.
