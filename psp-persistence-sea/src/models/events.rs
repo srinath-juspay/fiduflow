@@ -1,7 +1,7 @@
 //! SeaORM entity model for the events table.
 //!
-//! This table stores all flow events with classification metadata.
-//! Event body is stored as JSON for flexibility.
+//! This table stores all flow messages with classification metadata.
+//! Message body is stored as JSON for flexibility.
 
 use chrono::{DateTime, Utc};
 use sea_orm::entity::prelude::*;
@@ -35,13 +35,13 @@ pub struct Model {
     pub expects_async: bool,
 
     // === Payload ===
-    /// Event type name.
-    pub event_type: String,
-    /// Event body as JSON string.
-    pub event_body: String,
+    /// Message type name.
+    pub message_type: String,
+    /// Message body as JSON string.
+    pub message_body: String,
 
     // === Status ===
-    /// Event status: 'Pending' | 'Completed'
+    /// Message status: 'Pending' | 'Completed'
     pub status: String,
 
     // === Timestamps ===

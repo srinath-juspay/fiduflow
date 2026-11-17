@@ -5,7 +5,7 @@
 //! - `Next` enum: flow progression
 //! - `WaitPoint` trait: interaction points
 //! - `Event` trait: request-response typing
-//! - `EventData` (feature: persist): generic event storage with JSON
+//! - `MessageRecord` (feature: persist): generic message storage with JSON
 //! - `ContextData` (feature: persist): generic context storage with JSON
 
 #![cfg_attr(not(feature = "persist"), no_std)]
@@ -16,11 +16,11 @@ pub mod machine;
 #[cfg(feature = "persist")]
 pub mod context;
 #[cfg(feature = "persist")]
-pub mod event;
+pub mod message;
 
 pub use machine::{Event, Flow, Next, Refused, Stored, WaitPoint};
 
 #[cfg(feature = "persist")]
 pub use context::ContextData;
 #[cfg(feature = "persist")]
-pub use event::{Actor, EventData, EventStatus, Method};
+pub use message::{Actor, MessageRecord, MessageStatus, Method};

@@ -3,23 +3,23 @@
 //! This crate provides:
 //! - Typed entity snapshots per state
 //! - Cross-segment context (FlowContext from psp_flow, ContextData from driver_framework)
-//! - Categorized event data (FlowEvent from psp_flow, EventData from driver_framework)
+//! - Message records (FlowEvent from psp_flow, MessageRecord from driver_framework)
 //! - Pure decompose/reconstruct functions (verifiable)
 //! - Storage trait for database implementations
 
 pub mod context;
 pub mod decompose;
 pub mod entity;
-pub mod event_data;
+pub mod message_data;
 pub mod reconstruct;
 pub mod store;
 
 pub use context::{ContextData, FlowContext, Segment};
 pub use decompose::decompose;
 pub use entity::EntitySnapshot;
-pub use event_data::{
+pub use message_data::{
     // Generic storage types
-    EventData, EventStatus,
+    MessageRecord, MessageStatus,
     // Classification enums
     Actor, Method,
     // Categorized event types

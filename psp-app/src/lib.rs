@@ -9,7 +9,7 @@
 // Note: Per-event request/response types (GetPaymentIntentRequest, etc.) are available
 // via psp_persistence or psp_flow::persist when needed for storage operations.
 pub use psp_persistence::{
-    decompose, reconstruct, EntitySnapshot, EventData, EventStatus, EventType, FlowContext,
+    decompose, reconstruct, EntitySnapshot, MessageRecord, MessageStatus, EventType, FlowContext,
     FlowStore, ReconstructError, Segment,
 };
 

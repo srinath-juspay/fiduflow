@@ -5,7 +5,7 @@
 
 use crate::context::{FlowContext, Segment};
 use crate::entity::EntitySnapshot;
-use crate::event_data::{EventData, EventStatus};
+use crate::message_data::{MessageRecord, MessageStatus};
 use psp_flow::values::TxnId;
 use std::error::Error;
 use std::future::Future;
@@ -33,34 +33,34 @@ pub trait FlowStore: Send + Sync {
         id: TxnId,
     ) -> impl Future<Output = Result<Option<EntitySnapshot>, Self::Error>> + Send;
 
-    // ---- Event operations ----
+    // ---- Message operations ----
 
-    /// Insert a new event record.
-    fn insert_event(
+    /// Insert a new message record.
+    fn insert_message(
         &self,
         id: TxnId,
-        event: &EventData,
+        message: &MessageRecord,
     ) -> impl Future<Output = Result<i32, Self::Error>> + Send;
 
-    /// Update the status of an event.
-    fn update_event_status(
+    /// Update the status of a message.
+    fn update_message_status(
         &self,
         id: TxnId,
         seq: i32,
-        status: EventStatus,
+        status: MessageStatus,
     ) -> impl Future<Output = Result<(), Self::Error>> + Send;
 
-    /// Load all events for a transaction.
-    fn load_events(
+    /// Load all messages for a transaction.
+    fn load_messages(
         &self,
         id: TxnId,
-    ) -> impl Future<Output = Result<Vec<EventData>, Self::Error>> + Send;
+    ) -> impl Future<Output = Result<Vec<MessageRecord>, Self::Error>> + Send;
 
-    /// Load the pending event for a transaction.
-    fn pending_event(
+    /// Load the pending message for a transaction.
+    fn pending_message(
         &self,
         id: TxnId,
-    ) -> impl Future<Output = Result<Option<EventData>, Self::Error>> + Send;
+    ) -> impl Future<Output = Result<Option<MessageRecord>, Self::Error>> + Send;
 
     // ---- Context operations ----
 
@@ -93,34 +93,34 @@ pub trait FlowStore: Send + Sync {
 
 /// Extension trait for common store operations.
 pub trait FlowStoreExt: FlowStore {
-    /// Load an entity and its events, reconstructing the full state.
+    /// Load an entity and its messages, reconstructing the full state.
     fn load_full(
         &self,
         id: TxnId,
-    ) -> impl Future<Output = Result<Option<(EntitySnapshot, FlowContext, Vec<EventData>)>, Self::Error>> + Send
+    ) -> impl Future<Output = Result<Option<(EntitySnapshot, FlowContext, Vec<MessageRecord>)>, Self::Error>> + Send
     {
         async move {
             let Some(entity) = self.load_entity(id).await? else {
                 return Ok(None);
             };
             let ctx = self.load_context(id).await?;
-            let events = self.load_events(id).await?;
-            Ok(Some((entity, ctx, events)))
+            let messages = self.load_messages(id).await?;
+            Ok(Some((entity, ctx, messages)))
         }
     }
 
-    /// Save an entity, context, and new event atomically.
+    /// Save an entity, context, and new message atomically.
     fn save_full(
         &self,
         id: TxnId,
         entity: &EntitySnapshot,
         ctx: &FlowContext,
-        event: &EventData,
+        message: &MessageRecord,
     ) -> impl Future<Output = Result<i32, Self::Error>> + Send {
         async move {
             self.save_entity(id, entity).await?;
             self.save_context(id, ctx).await?;
-            self.insert_event(id, event).await
+            self.insert_message(id, message).await
         }
     }
 }

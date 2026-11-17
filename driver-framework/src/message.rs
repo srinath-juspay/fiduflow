@@ -1,7 +1,7 @@
-//! Generic event data structures for flow persistence.
+//! Generic message record structures for flow persistence.
 //!
 //! These types are domain-agnostic and can be used with any flow.
-//! Event classification:
+//! Message classification:
 //! - Source: User | ThisSystem | ExternalSystem
 //! - Target: User | ThisSystem | ExternalSystem
 //! - Method: Request | Ack | AsyncResponse | Notify
@@ -13,33 +13,33 @@
 use serde::{Deserialize, Serialize};
 use serde_json::Value as JsonValue;
 
-/// The status of an event in its lifecycle.
+/// The status of a message in its lifecycle.
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, Serialize, Deserialize)]
-pub enum EventStatus {
-    /// Event created but not yet sent/processed.
+pub enum MessageStatus {
+    /// Message created but not yet sent/processed.
     Pending,
-    /// Event sent/received, processing complete.
+    /// Message sent/received, processing complete.
     Completed,
 }
 
-impl EventStatus {
+impl MessageStatus {
     pub fn as_str(&self) -> &'static str {
         match self {
-            EventStatus::Pending => "Pending",
-            EventStatus::Completed => "Completed",
+            MessageStatus::Pending => "Pending",
+            MessageStatus::Completed => "Completed",
         }
     }
 
-    pub fn from_str(s: &str) -> Option<EventStatus> {
+    pub fn from_str(s: &str) -> Option<MessageStatus> {
         match s {
-            "Pending" => Some(EventStatus::Pending),
-            "Completed" => Some(EventStatus::Completed),
+            "Pending" => Some(MessageStatus::Pending),
+            "Completed" => Some(MessageStatus::Completed),
             _ => None,
         }
     }
 }
 
-/// An actor in the event flow.
+/// An actor in the message flow.
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, Serialize, Deserialize)]
 pub enum Actor {
     /// End user (customer, client app)
@@ -69,7 +69,7 @@ impl Actor {
     }
 }
 
-/// The method/nature of the event interaction.
+/// The method/nature of the message interaction.
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, Serialize, Deserialize)]
 pub enum Method {
     /// Request: Initiates an interaction (expects Ack, optionally AsyncResponse)
@@ -103,21 +103,21 @@ impl Method {
     }
 }
 
-/// A generic event data record for persistence.
+/// A generic message record for persistence.
 ///
-/// This structure stores event metadata with classification
-/// (source, target, method) along with the event body as JSON.
+/// This structure stores message metadata with classification
+/// (source, target, method) along with the message body as JSON.
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
-pub struct EventData {
+pub struct MessageRecord {
     /// Sequence number within the transaction (0-indexed).
     pub seq: i32,
 
     // === Classification ===
-    /// Source actor: who sent this event.
+    /// Source actor: who sent this message.
     pub source: Actor,
-    /// Target actor: who receives this event.
+    /// Target actor: who receives this message.
     pub target: Actor,
-    /// Method: the nature of this event interaction.
+    /// Method: the nature of this message interaction.
     pub method: Method,
 
     // === Correlation ===
@@ -131,18 +131,18 @@ pub struct EventData {
     pub expects_async: bool,
 
     // === Payload ===
-    /// The specific event type name.
-    pub event_type: String,
-    /// Event body (serialized domain event as JSON).
-    pub event_body: JsonValue,
+    /// The specific message type name.
+    pub message_type: String,
+    /// Message body (serialized domain event as JSON).
+    pub message_body: JsonValue,
 
     // === Status ===
     /// Current lifecycle status.
-    pub status: EventStatus,
+    pub status: MessageStatus,
 }
 
-impl EventData {
-    /// Create a Request event (initiates interaction).
+impl MessageRecord {
+    /// Create a Request message (initiates interaction).
     ///
     /// - `expects_async`: true if AsyncResponse is expected after Ack
     pub fn request(
@@ -150,8 +150,8 @@ impl EventData {
         source: Actor,
         target: Actor,
         expects_async: bool,
-        event_type: impl Into<String>,
-        event_body: JsonValue,
+        message_type: impl Into<String>,
+        message_body: JsonValue,
     ) -> Self {
         Self {
             seq,
@@ -160,13 +160,13 @@ impl EventData {
             method: Method::Request,
             in_response_to: None,
             expects_async,
-            event_type: event_type.into(),
-            event_body,
-            status: EventStatus::Pending,
+            message_type: message_type.into(),
+            message_body,
+            status: MessageStatus::Pending,
         }
     }
 
-    /// Create an Ack event (synchronous acknowledgment).
+    /// Create an Ack message (synchronous acknowledgment).
     ///
     /// - `in_response_to`: seq of the Request being acknowledged
     pub fn ack(
@@ -174,8 +174,8 @@ impl EventData {
         source: Actor,
         target: Actor,
         in_response_to: i32,
-        event_type: impl Into<String>,
-        event_body: JsonValue,
+        message_type: impl Into<String>,
+        message_body: JsonValue,
     ) -> Self {
         Self {
             seq,
@@ -184,13 +184,13 @@ impl EventData {
             method: Method::Ack,
             in_response_to: Some(in_response_to),
             expects_async: false,
-            event_type: event_type.into(),
-            event_body,
-            status: EventStatus::Pending,
+            message_type: message_type.into(),
+            message_body,
+            status: MessageStatus::Pending,
         }
     }
 
-    /// Create an AsyncResponse event (delayed response).
+    /// Create an AsyncResponse message (delayed response).
     ///
     /// - `in_response_to`: seq of the Request being responded to
     pub fn async_response(
@@ -198,8 +198,8 @@ impl EventData {
         source: Actor,
         target: Actor,
         in_response_to: i32,
-        event_type: impl Into<String>,
-        event_body: JsonValue,
+        message_type: impl Into<String>,
+        message_body: JsonValue,
     ) -> Self {
         Self {
             seq,
@@ -208,19 +208,19 @@ impl EventData {
             method: Method::AsyncResponse,
             in_response_to: Some(in_response_to),
             expects_async: false,
-            event_type: event_type.into(),
-            event_body,
-            status: EventStatus::Pending,
+            message_type: message_type.into(),
+            message_body,
+            status: MessageStatus::Pending,
         }
     }
 
-    /// Create a Notify event (one-way notification).
+    /// Create a Notify message (one-way notification).
     pub fn notify(
         seq: i32,
         source: Actor,
         target: Actor,
-        event_type: impl Into<String>,
-        event_body: JsonValue,
+        message_type: impl Into<String>,
+        message_body: JsonValue,
     ) -> Self {
         Self {
             seq,
@@ -229,62 +229,62 @@ impl EventData {
             method: Method::Notify,
             in_response_to: None,
             expects_async: false,
-            event_type: event_type.into(),
-            event_body,
-            status: EventStatus::Pending,
+            message_type: message_type.into(),
+            message_body,
+            status: MessageStatus::Pending,
         }
     }
 
     // === Convenience constructors for common patterns ===
 
     /// Request from ThisSystem to User (ack only).
-    pub fn request_to_user(seq: i32, event_type: impl Into<String>, body: JsonValue) -> Self {
-        Self::request(seq, Actor::ThisSystem, Actor::User, false, event_type, body)
+    pub fn request_to_user(seq: i32, message_type: impl Into<String>, body: JsonValue) -> Self {
+        Self::request(seq, Actor::ThisSystem, Actor::User, false, message_type, body)
     }
 
     /// Request from ThisSystem to User (expects async response).
-    pub fn request_to_user_async(seq: i32, event_type: impl Into<String>, body: JsonValue) -> Self {
-        Self::request(seq, Actor::ThisSystem, Actor::User, true, event_type, body)
+    pub fn request_to_user_async(seq: i32, message_type: impl Into<String>, body: JsonValue) -> Self {
+        Self::request(seq, Actor::ThisSystem, Actor::User, true, message_type, body)
     }
 
     /// Request from ThisSystem to ExternalSystem (ack only).
-    pub fn request_to_system(seq: i32, event_type: impl Into<String>, body: JsonValue) -> Self {
-        Self::request(seq, Actor::ThisSystem, Actor::ExternalSystem, false, event_type, body)
+    pub fn request_to_system(seq: i32, message_type: impl Into<String>, body: JsonValue) -> Self {
+        Self::request(seq, Actor::ThisSystem, Actor::ExternalSystem, false, message_type, body)
     }
 
     /// Request from ThisSystem to ExternalSystem (expects async response).
-    pub fn request_to_system_async(seq: i32, event_type: impl Into<String>, body: JsonValue) -> Self {
-        Self::request(seq, Actor::ThisSystem, Actor::ExternalSystem, true, event_type, body)
+    pub fn request_to_system_async(seq: i32, message_type: impl Into<String>, body: JsonValue) -> Self {
+        Self::request(seq, Actor::ThisSystem, Actor::ExternalSystem, true, message_type, body)
     }
 
     /// AsyncResponse from ExternalSystem to ThisSystem.
     pub fn async_response_from_system(
         seq: i32,
         in_response_to: i32,
-        event_type: impl Into<String>,
+        message_type: impl Into<String>,
         body: JsonValue,
     ) -> Self {
-        Self::async_response(seq, Actor::ExternalSystem, Actor::ThisSystem, in_response_to, event_type, body)
+        Self::async_response(seq, Actor::ExternalSystem, Actor::ThisSystem, in_response_to, message_type, body)
     }
 
     /// AsyncResponse from User to ThisSystem.
     pub fn async_response_from_user(
         seq: i32,
         in_response_to: i32,
-        event_type: impl Into<String>,
+        message_type: impl Into<String>,
         body: JsonValue,
     ) -> Self {
-        Self::async_response(seq, Actor::User, Actor::ThisSystem, in_response_to, event_type, body)
+        Self::async_response(seq, Actor::User, Actor::ThisSystem, in_response_to, message_type, body)
     }
 
-    /// Mark the event as completed.
+    /// Mark the message as completed.
     pub fn mark_completed(&mut self) {
-        self.status = EventStatus::Completed;
+        self.status = MessageStatus::Completed;
     }
 
-    /// Check if this event is pending.
+    /// Check if this message is pending.
     pub fn is_pending(&self) -> bool {
-        self.status == EventStatus::Pending
+        self.status == MessageStatus::Pending
     }
 
     /// Check if this is a Request that expects an async response.

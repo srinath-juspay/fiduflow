@@ -4,7 +4,7 @@ use crate::models::{events, flow_context, upi_txn};
 use chrono::Utc;
 use psp_flow::values::*;
 use psp_persistence::entity::*;
-use psp_persistence::{Actor, EventData, EventStatus, FlowContext, Method};
+use psp_persistence::{Actor, MessageRecord, MessageStatus, FlowContext, Method};
 use sea_orm::ActiveValue::Set;
 use thiserror::Error;
 
@@ -13,8 +13,8 @@ use thiserror::Error;
 pub enum ConversionError {
     #[error("Invalid state: {0}")]
     InvalidState(String),
-    #[error("Invalid event status: {0}")]
-    InvalidEventStatus(String),
+    #[error("Invalid message status: {0}")]
+    InvalidMessageStatus(String),
     #[error("Invalid reason: {0}")]
     InvalidReason(String),
     #[error("Missing required field: {0}")]
@@ -224,34 +224,34 @@ fn extract_pay_request(model: &upi_txn::Model) -> Result<PayRequest, ConversionE
     })
 }
 
-// ---- EventData <-> events::Model ----
+// ---- MessageRecord <-> events::Model ----
 
-pub fn event_to_model(txn_id: TxnId, event: &EventData) -> events::ActiveModel {
+pub fn message_to_model(txn_id: TxnId, message: &MessageRecord) -> events::ActiveModel {
     let now = Utc::now();
     events::ActiveModel {
         id: Set(Default::default()), // auto-generated
         txn_id: Set(txn_id.0 as i64),
-        seq: Set(event.seq),
+        seq: Set(message.seq),
         // Classification columns
-        source: Set(event.source.as_str().to_string()),
-        target: Set(event.target.as_str().to_string()),
-        method: Set(event.method.as_str().to_string()),
+        source: Set(message.source.as_str().to_string()),
+        target: Set(message.target.as_str().to_string()),
+        method: Set(message.method.as_str().to_string()),
         // Correlation
-        in_response_to: Set(event.in_response_to),
-        expects_async: Set(event.expects_async),
+        in_response_to: Set(message.in_response_to),
+        expects_async: Set(message.expects_async),
         // Payload
-        event_type: Set(event.event_type.clone()),
-        event_body: Set(serde_json::to_string(&event.event_body).unwrap()),
+        message_type: Set(message.message_type.clone()),
+        message_body: Set(serde_json::to_string(&message.message_body).unwrap()),
         // Status
-        status: Set(event.status.as_str().to_string()),
+        status: Set(message.status.as_str().to_string()),
         created_at: Set(now),
         completed_at: Set(None),
     }
 }
 
-pub fn model_to_event(model: &events::Model) -> Result<EventData, ConversionError> {
-    let status = EventStatus::from_str(&model.status)
-        .ok_or_else(|| ConversionError::InvalidEventStatus(model.status.clone()))?;
+pub fn model_to_message(model: &events::Model) -> Result<MessageRecord, ConversionError> {
+    let status = MessageStatus::from_str(&model.status)
+        .ok_or_else(|| ConversionError::InvalidMessageStatus(model.status.clone()))?;
 
     let source = Actor::from_str(&model.source)
         .ok_or_else(|| ConversionError::InvalidState(format!("Invalid source: {}", model.source)))?;
@@ -260,17 +260,17 @@ pub fn model_to_event(model: &events::Model) -> Result<EventData, ConversionErro
     let method = Method::from_str(&model.method)
         .ok_or_else(|| ConversionError::InvalidState(format!("Invalid method: {}", model.method)))?;
 
-    let event_body: serde_json::Value = serde_json::from_str(&model.event_body)?;
+    let message_body: serde_json::Value = serde_json::from_str(&model.message_body)?;
 
-    Ok(EventData {
+    Ok(MessageRecord {
         seq: model.seq,
         source,
         target,
         method,
         in_response_to: model.in_response_to,
         expects_async: model.expects_async,
-        event_type: model.event_type.clone(),
-        event_body,
+        message_type: model.message_type.clone(),
+        message_body,
         status,
     })
 }

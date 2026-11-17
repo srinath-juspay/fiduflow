@@ -1,7 +1,7 @@
-//! Event data types re-exported from psp_flow and driver_framework.
+//! Message data types re-exported from psp_flow and driver_framework.
 //!
 //! - Categorized `FlowEvent` types from `psp_flow::persist`
-//! - Generic `EventData` with classification from `driver_framework::event`
+//! - Generic `MessageRecord` with classification from `driver_framework::message`
 
 // Re-export categorized event types from psp_flow
 pub use psp_flow::persist::{
@@ -19,5 +19,5 @@ pub use psp_flow::persist::{
     EventType,
 };
 
-// Re-export generic event storage structures from driver_framework
-pub use driver_framework::{EventData, EventStatus};
+// Re-export generic message storage structures from driver_framework
+pub use driver_framework::{MessageRecord, MessageStatus};

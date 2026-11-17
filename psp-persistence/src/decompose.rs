@@ -3,21 +3,21 @@
 //! This function takes a flow bookmark and extracts:
 //! - EntitySnapshot: the entity state data
 //! - FlowContext: cross-segment locals
-//! - EventData: the current event being awaited (with classification + JSON body)
+//! - MessageRecord: the current message being awaited (with classification + JSON body)
 //!
 //! The decomposition is pure and can be formally verified.
 
 use crate::context::FlowContext;
 use crate::entity::*;
-use crate::event_data::*;
+use crate::message_data::*;
 use psp_flow::machine::*;
 use psp_flow::values::*;
 
 /// Decompose a PayerPay bookmark into its persistence components.
 ///
-/// Returns (EntitySnapshot, FlowContext, EventData).
-/// The `seq` parameter is the sequence number to assign to the event.
-pub fn decompose(bookmark: &PayerPay, seq: i32) -> (EntitySnapshot, FlowContext, EventData) {
+/// Returns (EntitySnapshot, FlowContext, MessageRecord).
+/// The `seq` parameter is the sequence number to assign to the message.
+pub fn decompose(bookmark: &PayerPay, seq: i32) -> (EntitySnapshot, FlowContext, MessageRecord) {
     let ctx = FlowContext::default();
 
     match bookmark {
@@ -28,7 +28,7 @@ pub fn decompose(bookmark: &PayerPay, seq: i32) -> (EntitySnapshot, FlowContext,
             });
             let cmd = UserCommand::GetPaymentIntent { payer: w.txn.data.payer };
             // Request to user, expects async response (user provides intent)
-            let event = EventData::request_to_user_async(
+            let event = MessageRecord::request_to_user_async(
                 seq,
                 cmd.event_type(),
                 serde_json::to_value(&cmd).unwrap(),
@@ -43,7 +43,7 @@ pub fn decompose(bookmark: &PayerPay, seq: i32) -> (EntitySnapshot, FlowContext,
             });
             let cmd = UserCommand::ShowError { reason: w.reason };
             // Request to user, expects ack only
-            let event = EventData::request_to_user(
+            let event = MessageRecord::request_to_user(
                 seq,
                 cmd.event_type(),
                 serde_json::to_value(&cmd).unwrap(),
@@ -61,7 +61,7 @@ pub fn decompose(bookmark: &PayerPay, seq: i32) -> (EntitySnapshot, FlowContext,
                 intent: w.intent,
             };
             // Request to user, expects async response (user provides MPIN)
-            let event = EventData::request_to_user_async(
+            let event = MessageRecord::request_to_user_async(
                 seq,
                 cmd.event_type(),
                 serde_json::to_value(&cmd).unwrap(),
@@ -78,7 +78,7 @@ pub fn decompose(bookmark: &PayerPay, seq: i32) -> (EntitySnapshot, FlowContext,
             });
             let cmd = SystemCommand::ReqPay { req: w.req };
             // Request to external system, expects async response (payment callback)
-            let event = EventData::request_to_system_async(
+            let event = MessageRecord::request_to_system_async(
                 seq,
                 cmd.event_type(),
                 serde_json::to_value(&cmd).unwrap(),
@@ -95,7 +95,7 @@ pub fn decompose(bookmark: &PayerPay, seq: i32) -> (EntitySnapshot, FlowContext,
             });
             let cmd = UserCommand::Notify { status: Status::Failed(w.reason) };
             // Notify to user, expects ack only
-            let event = EventData::request_to_user(
+            let event = MessageRecord::request_to_user(
                 seq,
                 cmd.event_type(),
                 serde_json::to_value(&cmd).unwrap(),
@@ -110,7 +110,7 @@ pub fn decompose(bookmark: &PayerPay, seq: i32) -> (EntitySnapshot, FlowContext,
             });
             // Waiting for AsyncResponse from ExternalSystem (payment callback)
             // This is a placeholder for the expected incoming response
-            let event = EventData::async_response(
+            let event = MessageRecord::async_response(
                 seq,
                 Actor::ExternalSystem,
                 Actor::ThisSystem,
@@ -128,7 +128,7 @@ pub fn decompose(bookmark: &PayerPay, seq: i32) -> (EntitySnapshot, FlowContext,
             });
             let cmd = UserCommand::Notify { status: Status::Successful };
             // Notify to user, expects ack only
-            let event = EventData::request_to_user(
+            let event = MessageRecord::request_to_user(
                 seq,
                 cmd.event_type(),
                 serde_json::to_value(&cmd).unwrap(),
@@ -143,7 +143,7 @@ pub fn decompose(bookmark: &PayerPay, seq: i32) -> (EntitySnapshot, FlowContext,
             });
             let cmd = UserCommand::Notify { status: Status::Failed(w.reason) };
             // Notify to user, expects ack only
-            let event = EventData::request_to_user(
+            let event = MessageRecord::request_to_user(
                 seq,
                 cmd.event_type(),
                 serde_json::to_value(&cmd).unwrap(),
@@ -158,7 +158,7 @@ pub fn decompose(bookmark: &PayerPay, seq: i32) -> (EntitySnapshot, FlowContext,
             });
             let cmd = UserCommand::Notify { status: Status::Processing };
             // Notify to user, expects ack only
-            let event = EventData::request_to_user(
+            let event = MessageRecord::request_to_user(
                 seq,
                 cmd.event_type(),
                 serde_json::to_value(&cmd).unwrap(),
@@ -172,7 +172,7 @@ pub fn decompose(bookmark: &PayerPay, seq: i32) -> (EntitySnapshot, FlowContext,
                 req: w.txn.data.req,
             });
             // Waiting for AsyncResponse from ExternalSystem (deemed resolution)
-            let event = EventData::async_response(
+            let event = MessageRecord::async_response(
                 seq,
                 Actor::ExternalSystem,
                 Actor::ThisSystem,
@@ -190,7 +190,7 @@ pub fn decompose(bookmark: &PayerPay, seq: i32) -> (EntitySnapshot, FlowContext,
             });
             let cmd = UserCommand::Notify { status: Status::Confirmed };
             // Notify to user, expects ack only
-            let event = EventData::request_to_user(
+            let event = MessageRecord::request_to_user(
                 seq,
                 cmd.event_type(),
                 serde_json::to_value(&cmd).unwrap(),
@@ -205,7 +205,7 @@ pub fn decompose(bookmark: &PayerPay, seq: i32) -> (EntitySnapshot, FlowContext,
             });
             let cmd = UserCommand::Notify { status: Status::Reversed };
             // Notify to user, expects ack only
-            let event = EventData::request_to_user(
+            let event = MessageRecord::request_to_user(
                 seq,
                 cmd.event_type(),
                 serde_json::to_value(&cmd).unwrap(),
@@ -220,7 +220,7 @@ pub fn decompose(bookmark: &PayerPay, seq: i32) -> (EntitySnapshot, FlowContext,
             });
             let cmd = UserCommand::Notify { status: Status::ReversalInProgress };
             // Notify to user, expects ack only
-            let event = EventData::request_to_user(
+            let event = MessageRecord::request_to_user(
                 seq,
                 cmd.event_type(),
                 serde_json::to_value(&cmd).unwrap(),
@@ -234,7 +234,7 @@ pub fn decompose(bookmark: &PayerPay, seq: i32) -> (EntitySnapshot, FlowContext,
                 req: w.txn.data.req,
             });
             // Waiting for AsyncResponse from ExternalSystem (forced reversal)
-            let event = EventData::async_response(
+            let event = MessageRecord::async_response(
                 seq,
                 Actor::ExternalSystem,
                 Actor::ThisSystem,
@@ -252,7 +252,7 @@ pub fn decompose(bookmark: &PayerPay, seq: i32) -> (EntitySnapshot, FlowContext,
             });
             let cmd = UserCommand::Notify { status: Status::Reversed };
             // Notify to user, expects ack only
-            let event = EventData::request_to_user(
+            let event = MessageRecord::request_to_user(
                 seq,
                 cmd.event_type(),
                 serde_json::to_value(&cmd).unwrap(),
@@ -305,7 +305,7 @@ mod tests {
         assert_eq!(event.target, Actor::User);
         assert_eq!(event.method, Method::Request);
         assert!(event.expects_async); // Expects user to provide intent
-        assert_eq!(event.event_type, "GetPaymentIntent");
+        assert_eq!(event.message_type, "GetPaymentIntent");
     }
 
     #[test]
@@ -321,7 +321,7 @@ mod tests {
 
         assert!(matches!(entity, EntitySnapshot::Initiated(_)));
         assert_eq!(event.seq, 1);
-        assert_eq!(event.event_type, "CollectMpin");
+        assert_eq!(event.message_type, "CollectMpin");
         assert_eq!(event.source, Actor::ThisSystem);
         assert_eq!(event.target, Actor::User);
         assert_eq!(event.method, Method::Request);
@@ -339,7 +339,7 @@ mod tests {
         let (entity, _ctx, event) = decompose(&bookmark, 2);
 
         assert!(matches!(entity, EntitySnapshot::Authenticated(_)));
-        assert_eq!(event.event_type, "ReqPay");
+        assert_eq!(event.message_type, "ReqPay");
         assert_eq!(event.source, Actor::ThisSystem);
         assert_eq!(event.target, Actor::ExternalSystem);
         assert_eq!(event.method, Method::Request);
@@ -358,7 +358,7 @@ mod tests {
         let (entity, _ctx, event) = decompose(&bookmark, 3);
 
         assert!(matches!(entity, EntitySnapshot::Submitted(_)));
-        assert_eq!(event.event_type, "AwaitCallback");
+        assert_eq!(event.message_type, "AwaitCallback");
         assert_eq!(event.source, Actor::ExternalSystem);
         assert_eq!(event.target, Actor::ThisSystem);
         assert_eq!(event.method, Method::AsyncResponse);

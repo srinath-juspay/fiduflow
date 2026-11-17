@@ -4,15 +4,15 @@
 //! - `FlowContext`: Cross-segment locals (e.g., is_high_value)
 //! - `FlowEvent`: Categorized events (source, target, method)
 //!
-//! Event classification (re-exported from driver-framework):
+//! Message classification (re-exported from driver-framework):
 //! - Source/Target: User | ThisSystem | ExternalSystem
-//! - Method: Command | Request | Notification | SyncAck | AsyncResponse | AsyncCallback
+//! - Method: Request | Ack | AsyncResponse | Notify
 
 use crate::values::*;
 use serde::{Deserialize, Serialize};
 
 // Re-export classification types from driver-framework for consistent usage
-pub use driver_framework::{Actor, EventData, EventStatus, Method};
+pub use driver_framework::{Actor, MessageRecord, MessageStatus, Method};
 
 // ============================================================================
 // Flow Context (cross-segment locals)

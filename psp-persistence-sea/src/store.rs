@@ -1,15 +1,15 @@
 //! SeaORM implementation of FlowStore.
 
 use crate::conversions::{
-    context_to_model, entity_to_model, event_to_model, model_to_context, model_to_entity,
-    model_to_event,
+    context_to_model, entity_to_model, message_to_model, model_to_context, model_to_entity,
+    model_to_message,
 };
 use crate::models::{events, flow_context, upi_txn};
 use chrono::Utc;
 use psp_flow::values::TxnId;
 use psp_persistence::context::{FlowContext, Segment};
 use psp_persistence::entity::EntitySnapshot;
-use psp_persistence::{EventData, EventStatus};
+use psp_persistence::{MessageRecord, MessageStatus};
 use psp_persistence::store::FlowStore;
 use sea_orm::ActiveValue::Set;
 use sea_orm::{
@@ -25,8 +25,8 @@ pub enum StoreError {
     Db(#[from] DbErr),
     #[error("Conversion error: {0}")]
     Conversion(#[from] crate::conversions::ConversionError),
-    #[error("Event not found: txn={0}, seq={1}")]
-    EventNotFound(u64, i32),
+    #[error("Message not found: txn={0}, seq={1}")]
+    MessageNotFound(u64, i32),
 }
 
 /// SeaORM implementation of FlowStore.
@@ -88,8 +88,8 @@ impl SeaFlowStore {
                 in_response_to INTEGER,
                 expects_async INTEGER NOT NULL DEFAULT 0,
                 -- Payload
-                event_type TEXT NOT NULL,
-                event_body TEXT NOT NULL,
+                message_type TEXT NOT NULL,
+                message_body TEXT NOT NULL,
                 -- Status
                 status TEXT NOT NULL,
                 created_at TEXT NOT NULL,
@@ -166,30 +166,30 @@ impl FlowStore for SeaFlowStore {
         }
     }
 
-    async fn insert_event(&self, id: TxnId, event: &EventData) -> Result<i32, Self::Error> {
-        let model = event_to_model(id, event);
+    async fn insert_message(&self, id: TxnId, message: &MessageRecord) -> Result<i32, Self::Error> {
+        let model = message_to_model(id, message);
         model.insert(&self.db).await?;
-        Ok(event.seq)
+        Ok(message.seq)
     }
 
-    async fn update_event_status(
+    async fn update_message_status(
         &self,
         id: TxnId,
         seq: i32,
-        status: EventStatus,
+        status: MessageStatus,
     ) -> Result<(), Self::Error> {
-        let event = events::Entity::find()
+        let record = events::Entity::find()
             .filter(events::Column::TxnId.eq(id.0 as i64))
             .filter(events::Column::Seq.eq(seq))
             .one(&self.db)
             .await?
-            .ok_or(StoreError::EventNotFound(id.0, seq))?;
+            .ok_or(StoreError::MessageNotFound(id.0, seq))?;
 
-        let mut update: events::ActiveModel = event.into();
+        let mut update: events::ActiveModel = record.into();
         update.status = Set(status.as_str().to_string());
 
         // Set completed_at timestamp when marking as completed
-        if status == EventStatus::Completed {
+        if status == MessageStatus::Completed {
             update.completed_at = Set(Some(Utc::now()));
         }
 
@@ -197,7 +197,7 @@ impl FlowStore for SeaFlowStore {
         Ok(())
     }
 
-    async fn load_events(&self, id: TxnId) -> Result<Vec<EventData>, Self::Error> {
+    async fn load_messages(&self, id: TxnId) -> Result<Vec<MessageRecord>, Self::Error> {
         let models = events::Entity::find()
             .filter(events::Column::TxnId.eq(id.0 as i64))
             .order_by_asc(events::Column::Seq)
@@ -206,20 +206,20 @@ impl FlowStore for SeaFlowStore {
 
         models
             .iter()
-            .map(|m| model_to_event(m).map_err(StoreError::from))
+            .map(|m| model_to_message(m).map_err(StoreError::from))
             .collect()
     }
 
-    async fn pending_event(&self, id: TxnId) -> Result<Option<EventData>, Self::Error> {
+    async fn pending_message(&self, id: TxnId) -> Result<Option<MessageRecord>, Self::Error> {
         let model = events::Entity::find()
             .filter(events::Column::TxnId.eq(id.0 as i64))
-            .filter(events::Column::Status.eq(EventStatus::Pending.as_str()))
+            .filter(events::Column::Status.eq(MessageStatus::Pending.as_str()))
             .order_by_asc(events::Column::Seq)
             .one(&self.db)
             .await?;
 
         match model {
-            Some(m) => Ok(Some(model_to_event(&m)?)),
+            Some(m) => Ok(Some(model_to_message(&m)?)),
             None => Ok(None),
         }
     }
@@ -311,7 +311,7 @@ mod tests {
     }
 
     #[tokio::test]
-    async fn test_insert_load_event() {
+    async fn test_insert_load_message() {
         let store = setup_test_db().await;
         let id = TxnId(1);
 
@@ -324,21 +324,21 @@ mod tests {
 
         let cmd = UserCommand::GetPaymentIntent { payer: PayerId(42) };
         // Request to user, expects async response
-        let event = EventData::request_to_user_async(
+        let message = MessageRecord::request_to_user_async(
             0,
             cmd.event_type(),
             serde_json::to_value(&cmd).unwrap(),
         );
-        store.insert_event(id, &event).await.unwrap();
+        store.insert_message(id, &message).await.unwrap();
 
-        let events = store.load_events(id).await.unwrap();
-        assert_eq!(events.len(), 1);
-        assert_eq!(events[0].seq, 0);
-        assert_eq!(events[0].event_type, "GetPaymentIntent");
-        assert_eq!(events[0].source, Actor::ThisSystem);
-        assert_eq!(events[0].target, Actor::User);
-        assert_eq!(events[0].method, Method::Request);
-        assert!(events[0].expects_async);
+        let messages = store.load_messages(id).await.unwrap();
+        assert_eq!(messages.len(), 1);
+        assert_eq!(messages[0].seq, 0);
+        assert_eq!(messages[0].message_type, "GetPaymentIntent");
+        assert_eq!(messages[0].source, Actor::ThisSystem);
+        assert_eq!(messages[0].target, Actor::User);
+        assert_eq!(messages[0].method, Method::Request);
+        assert!(messages[0].expects_async);
     }
 
     #[tokio::test]

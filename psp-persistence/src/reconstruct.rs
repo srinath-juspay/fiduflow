@@ -1,12 +1,12 @@
 //! Reconstruct a PayerPay bookmark from persistence snapshots.
 //!
-//! This function takes an entity snapshot, context, and event history and
+//! This function takes an entity snapshot, context, and message history and
 //! reconstructs the original PayerPay bookmark. The reconstruction is pure
 //! and can be formally verified.
 
 use crate::context::FlowContext;
 use crate::entity::*;
-use crate::event_data::*;
+use crate::message_data::*;
 use psp_flow::entity::*;
 use psp_flow::machine::*;
 use psp_flow::values::*;
@@ -14,67 +14,67 @@ use psp_flow::values::*;
 /// Errors that can occur during reconstruction.
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub enum ReconstructError {
-    /// No pending event found in the event list.
-    NoPendingEvent,
-    /// The entity state and event type combination is invalid.
-    InvalidStateEventCombination { state: &'static str, event_type: String },
-    /// Missing required data from event history.
-    MissingEventData(&'static str),
+    /// No pending message found in the message list.
+    NoPendingMessage,
+    /// The entity state and message type combination is invalid.
+    InvalidStateMessageCombination { state: &'static str, message_type: String },
+    /// Missing required data from message history.
+    MissingMessageData(&'static str),
     /// The entity snapshot is a terminal state.
     TerminalState,
     /// Failed to deserialize JSON.
     JsonError(String),
 }
 
-/// Find the pending event from the event list.
-fn find_pending_event(events: &[EventData]) -> Option<&EventData> {
-    events.iter().find(|e| e.is_pending())
+/// Find the pending message from the message list.
+fn find_pending_message(messages: &[MessageRecord]) -> Option<&MessageRecord> {
+    messages.iter().find(|m| m.is_pending())
 }
 
 /// Extract success refs from previous system async response.
-fn extract_success_refs(events: &[EventData]) -> Result<(Ref, Ref), ReconstructError> {
-    for event in events {
+fn extract_success_refs(messages: &[MessageRecord]) -> Result<(Ref, Ref), ReconstructError> {
+    for msg in messages {
         // Look for ExternalSystem → ThisSystem async response
-        if event.method == Method::AsyncResponse && event.source == Actor::ExternalSystem {
-            if let Ok(callback) = serde_json::from_value::<SystemAsyncCallback>(event.event_body.clone()) {
+        if msg.method == Method::AsyncResponse && msg.source == Actor::ExternalSystem {
+            if let Ok(callback) = serde_json::from_value::<SystemAsyncCallback>(msg.message_body.clone()) {
                 if let SystemAsyncCallback::PaymentSuccess { debit_ref, credit_ref } = callback {
                     return Ok((debit_ref, credit_ref));
                 }
             }
         }
     }
-    Err(ReconstructError::MissingEventData("success refs"))
+    Err(ReconstructError::MissingMessageData("success refs"))
 }
 
 /// Extract credit_ref from deemed resolution callback.
-fn extract_confirmed_credit_ref(events: &[EventData]) -> Result<Ref, ReconstructError> {
-    for event in events {
+fn extract_confirmed_credit_ref(messages: &[MessageRecord]) -> Result<Ref, ReconstructError> {
+    for msg in messages {
         // Look for ExternalSystem → ThisSystem async response
-        if event.method == Method::AsyncResponse && event.source == Actor::ExternalSystem {
-            if let Ok(callback) = serde_json::from_value::<SystemAsyncCallback>(event.event_body.clone()) {
+        if msg.method == Method::AsyncResponse && msg.source == Actor::ExternalSystem {
+            if let Ok(callback) = serde_json::from_value::<SystemAsyncCallback>(msg.message_body.clone()) {
                 if let SystemAsyncCallback::DeemedSuccess { credit_ref } = callback {
                     return Ok(credit_ref);
                 }
             }
         }
     }
-    Err(ReconstructError::MissingEventData("confirmed credit_ref"))
+    Err(ReconstructError::MissingMessageData("confirmed credit_ref"))
 }
 
 /// Reconstruct a PayerPay bookmark from persistence snapshots.
 pub fn reconstruct(
     entity: &EntitySnapshot,
     _ctx: &FlowContext,
-    events: &[EventData],
+    messages: &[MessageRecord],
 ) -> Result<PayerPay, ReconstructError> {
     if entity.is_terminal() {
         return Err(ReconstructError::TerminalState);
     }
 
-    let current = find_pending_event(events).ok_or(ReconstructError::NoPendingEvent)?;
-    let event_type = current.event_type.as_str();
+    let current = find_pending_message(messages).ok_or(ReconstructError::NoPendingMessage)?;
+    let message_type = current.message_type.as_str();
 
-    match (entity, event_type) {
+    match (entity, message_type) {
         // Initiated state combinations
         (EntitySnapshot::Initiated(e), "GetPaymentIntent") => {
             let txn = Txn {
@@ -89,11 +89,11 @@ pub fn reconstruct(
                 id: e.id,
                 data: Initiated { payer: e.payer },
             };
-            let cmd: UserCommand = serde_json::from_value(current.event_body.clone())
+            let cmd: UserCommand = serde_json::from_value(current.message_body.clone())
                 .map_err(|e| ReconstructError::JsonError(e.to_string()))?;
             let reason = match cmd {
                 UserCommand::ShowError { reason } => reason,
-                _ => return Err(ReconstructError::MissingEventData("reason")),
+                _ => return Err(ReconstructError::MissingMessageData("reason")),
             };
             Ok(PayerPay::AtShowError(AtShowError { txn, reason }))
         }
@@ -103,11 +103,11 @@ pub fn reconstruct(
                 id: e.id,
                 data: Initiated { payer: e.payer },
             };
-            let cmd: UserCommand = serde_json::from_value(current.event_body.clone())
+            let cmd: UserCommand = serde_json::from_value(current.message_body.clone())
                 .map_err(|e| ReconstructError::JsonError(e.to_string()))?;
             let intent = match cmd {
                 UserCommand::CollectMpin { intent, .. } => intent,
-                _ => return Err(ReconstructError::MissingEventData("intent")),
+                _ => return Err(ReconstructError::MissingMessageData("intent")),
             };
             Ok(PayerPay::AtCollectMpin(AtCollectMpin { txn, intent }))
         }
@@ -136,11 +136,11 @@ pub fn reconstruct(
                 },
             };
             let req = txn.build_req_pay();
-            let cmd: UserCommand = serde_json::from_value(current.event_body.clone())
+            let cmd: UserCommand = serde_json::from_value(current.message_body.clone())
                 .map_err(|e| ReconstructError::JsonError(e.to_string()))?;
             let reason = match cmd {
                 UserCommand::Notify { status: Status::Failed(r) } => r,
-                _ => return Err(ReconstructError::MissingEventData("reason from status")),
+                _ => return Err(ReconstructError::MissingMessageData("reason from status")),
             };
             Ok(PayerPay::AtNotifyRejected(AtNotifyRejected { txn, req, reason }))
         }
@@ -159,11 +159,11 @@ pub fn reconstruct(
                 id: e.id,
                 data: Submitted { req: e.req },
             };
-            let cmd: UserCommand = serde_json::from_value(current.event_body.clone())
+            let cmd: UserCommand = serde_json::from_value(current.message_body.clone())
                 .map_err(|e| ReconstructError::JsonError(e.to_string()))?;
             match cmd {
                 UserCommand::Notify { status: Status::Successful } => {
-                    let (debit_ref, credit_ref) = extract_success_refs(events)?;
+                    let (debit_ref, credit_ref) = extract_success_refs(messages)?;
                     Ok(PayerPay::AtNotifySuccess(AtNotifySuccess { txn, debit_ref, credit_ref }))
                 }
                 UserCommand::Notify { status: Status::Failed(reason) } => {
@@ -172,7 +172,7 @@ pub fn reconstruct(
                 UserCommand::Notify { status: Status::Processing } => {
                     Ok(PayerPay::AtNotifyProcessing(AtNotifyProcessing { txn }))
                 }
-                _ => Err(ReconstructError::MissingEventData("notify status")),
+                _ => Err(ReconstructError::MissingMessageData("notify status")),
             }
         }
 
@@ -190,17 +190,17 @@ pub fn reconstruct(
                 id: e.id,
                 data: Deemed { req: e.req },
             };
-            let cmd: UserCommand = serde_json::from_value(current.event_body.clone())
+            let cmd: UserCommand = serde_json::from_value(current.message_body.clone())
                 .map_err(|e| ReconstructError::JsonError(e.to_string()))?;
             match cmd {
                 UserCommand::Notify { status: Status::Confirmed } => {
-                    let credit_ref = extract_confirmed_credit_ref(events)?;
+                    let credit_ref = extract_confirmed_credit_ref(messages)?;
                     Ok(PayerPay::AtNotifyConfirmed(AtNotifyConfirmed { txn, credit_ref }))
                 }
                 UserCommand::Notify { status: Status::Reversed } => {
                     Ok(PayerPay::AtNotifyDeemedReversed(AtNotifyDeemedReversed { txn }))
                 }
-                _ => Err(ReconstructError::MissingEventData("notify status")),
+                _ => Err(ReconstructError::MissingMessageData("notify status")),
             }
         }
 
@@ -210,7 +210,7 @@ pub fn reconstruct(
                 id: e.id,
                 data: ReversalPending { req: e.req },
             };
-            let cmd: UserCommand = serde_json::from_value(current.event_body.clone())
+            let cmd: UserCommand = serde_json::from_value(current.message_body.clone())
                 .map_err(|e| ReconstructError::JsonError(e.to_string()))?;
             match cmd {
                 UserCommand::Notify { status: Status::ReversalInProgress } => {
@@ -219,7 +219,7 @@ pub fn reconstruct(
                 UserCommand::Notify { status: Status::Reversed } => {
                     Ok(PayerPay::AtNotifyReversed(AtNotifyReversed { txn }))
                 }
-                _ => Err(ReconstructError::MissingEventData("notify status")),
+                _ => Err(ReconstructError::MissingMessageData("notify status")),
             }
         }
 
@@ -232,9 +232,9 @@ pub fn reconstruct(
         }
 
         // Invalid combinations
-        _ => Err(ReconstructError::InvalidStateEventCombination {
+        _ => Err(ReconstructError::InvalidStateMessageCombination {
             state: entity.state_name(),
-            event_type: event_type.to_string(),
+            message_type: message_type.to_string(),
         }),
     }
 }
@@ -344,7 +344,7 @@ mod tests {
             debit_ref: Ref(1001),
             credit_ref: Ref(2002),
         };
-        let mut callback_event = EventData::async_response_from_system(
+        let mut callback_event = MessageRecord::async_response_from_system(
             0,
             0, // in_response_to
             "PaymentSuccess",
@@ -388,7 +388,7 @@ mod tests {
         let (entity, ctx, notify_event) = decompose(&bookmark, 1);
 
         let callback = SystemAsyncCallback::DeemedSuccess { credit_ref: Ref(3003) };
-        let mut callback_event = EventData::async_response_from_system(
+        let mut callback_event = MessageRecord::async_response_from_system(
             0,
             0, // in_response_to
             "DeemedSuccess",
@@ -438,7 +438,7 @@ mod tests {
             credit_ref: Ref(2),
         });
         let ctx = FlowContext::default();
-        let event = EventData::request_to_user(
+        let event = MessageRecord::request_to_user(
             0,
             "Notify",
             serde_json::to_value(&UserCommand::Notify { status: Status::Successful }).unwrap(),
@@ -449,14 +449,14 @@ mod tests {
     }
 
     #[test]
-    fn test_no_pending_event_error() {
+    fn test_no_pending_message_error() {
         let entity = EntitySnapshot::Initiated(InitiatedEntity {
             id: TxnId(1),
             payer: PayerId(42),
         });
         let ctx = FlowContext::default();
 
-        let mut event = EventData::request_to_user_async(
+        let mut event = MessageRecord::request_to_user_async(
             0,
             "GetPaymentIntent",
             serde_json::to_value(&UserCommand::GetPaymentIntent { payer: PayerId(42) }).unwrap(),
@@ -464,11 +464,11 @@ mod tests {
         event.mark_completed();
 
         let result = reconstruct(&entity, &ctx, &[event]);
-        assert_eq!(result, Err(ReconstructError::NoPendingEvent));
+        assert_eq!(result, Err(ReconstructError::NoPendingMessage));
     }
 
     #[test]
-    fn test_invalid_state_event_combination() {
+    fn test_invalid_state_message_combination() {
         let entity = EntitySnapshot::Initiated(InitiatedEntity {
             id: TxnId(1),
             payer: PayerId(42),
@@ -477,7 +477,7 @@ mod tests {
 
         // Create an event that doesn't match the Initiated state
         // AwaitCallback is only valid in Submitted state
-        let event = EventData::async_response(
+        let event = MessageRecord::async_response(
             0,
             Actor::ExternalSystem,
             Actor::ThisSystem,
@@ -489,7 +489,7 @@ mod tests {
         let result = reconstruct(&entity, &ctx, &[event]);
         assert!(matches!(
             result,
-            Err(ReconstructError::InvalidStateEventCombination { .. })
+            Err(ReconstructError::InvalidStateMessageCombination { .. })
         ));
     }
 }
