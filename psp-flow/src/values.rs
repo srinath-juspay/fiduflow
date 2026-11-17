@@ -26,8 +26,8 @@ pub struct Mpin(pub u32);
 #[cfg_attr(feature = "persist", derive(serde::Serialize, serde::Deserialize))]
 pub struct Ref(pub u64);
 
-#[derive(Clone, Copy)]
-#[cfg_attr(feature = "runtime", derive(Debug, PartialEq, Eq))]
+#[derive(Clone, Copy, PartialEq, Eq, Hash)]
+#[cfg_attr(feature = "runtime", derive(Debug))]
 #[cfg_attr(feature = "persist", derive(serde::Serialize, serde::Deserialize))]
 pub struct TxnId(pub u64);
 

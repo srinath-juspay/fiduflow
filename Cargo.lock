@@ -1067,6 +1067,7 @@ dependencies = [
  "psp-persistence",
  "psp-persistence-sea",
  "psp_flow",
+ "sea-orm",
  "tokio",
 ]
 

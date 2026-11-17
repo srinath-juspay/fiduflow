@@ -5,6 +5,12 @@
 
 use psp_flow::values::*;
 
+/// Entity snapshot for the Uninitialized state (waiting for payer ID).
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub struct UninitializedEntity {
+    pub id: TxnId,
+}
+
 /// Entity snapshot for the Initiated state.
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub struct InitiatedEntity {
@@ -77,6 +83,7 @@ pub struct AbandonedEntity {
 /// This mirrors the state machine's entity states but as a persistence-friendly enum.
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub enum EntitySnapshot {
+    Uninitialized(UninitializedEntity),
     Initiated(InitiatedEntity),
     Authenticated(AuthenticatedEntity),
     Submitted(SubmittedEntity),
@@ -93,6 +100,7 @@ impl EntitySnapshot {
     /// Get the transaction ID from any snapshot variant.
     pub fn id(&self) -> TxnId {
         match self {
+            EntitySnapshot::Uninitialized(e) => e.id,
             EntitySnapshot::Initiated(e) => e.id,
             EntitySnapshot::Authenticated(e) => e.id,
             EntitySnapshot::Submitted(e) => e.id,
@@ -108,6 +116,7 @@ impl EntitySnapshot {
     /// Get the state name as a string (for database storage).
     pub fn state_name(&self) -> &'static str {
         match self {
+            EntitySnapshot::Uninitialized(_) => "Uninitialized",
             EntitySnapshot::Initiated(_) => "Initiated",
             EntitySnapshot::Authenticated(_) => "Authenticated",
             EntitySnapshot::Submitted(_) => "Submitted",

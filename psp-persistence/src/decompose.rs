@@ -25,6 +25,20 @@ pub fn decompose(bookmark: &PayerPay) -> (EntitySnapshot, FlowContext, MessageRe
     let ctx = FlowContext::default();
 
     match bookmark {
+        PayerPay::AtInit(w) => {
+            let entity = EntitySnapshot::Uninitialized(UninitializedEntity { id: w.id });
+            // System event: waiting for payer ID to initialize the flow
+            // This is an internal request, expects the payer ID as response
+            let message = MessageRecord::request(
+                Actor::ThisSystem,
+                Actor::ThisSystem,
+                true, // expects response
+                "Init",
+                serde_json::json!({ "id": w.id.0 }),
+            );
+            (entity, ctx, message)
+        }
+
         PayerPay::AtGetPaymentIntent(w) => {
             let entity = EntitySnapshot::Initiated(InitiatedEntity {
                 id: w.txn.id,
@@ -269,6 +283,7 @@ pub fn decompose(bookmark: &PayerPay) -> (EntitySnapshot, FlowContext, MessageRe
 /// Get the wait point name for a PayerPay bookmark.
 pub fn wait_point_name(bookmark: &PayerPay) -> &'static str {
     match bookmark {
+        PayerPay::AtInit(_) => "AtInit",
         PayerPay::AtGetPaymentIntent(_) => "AtGetPaymentIntent",
         PayerPay::AtShowError(_) => "AtShowError",
         PayerPay::AtCollectMpin(_) => "AtCollectMpin",

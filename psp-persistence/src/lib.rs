@@ -30,5 +30,7 @@ pub use message_data::{
     // Legacy
     EventType,
 };
-pub use reconstruct::{reconstruct, ReconstructError};
+pub use reconstruct::reconstruct;
+// Re-export from driver-framework
+pub use driver_framework::ReconstructError;
 pub use store::FlowStore;

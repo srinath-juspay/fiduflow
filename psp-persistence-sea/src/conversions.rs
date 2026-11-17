@@ -67,6 +67,9 @@ pub fn entity_to_model(id: TxnId, entity: &EntitySnapshot) -> upi_txn::ActiveMod
     };
 
     match entity {
+        EntitySnapshot::Uninitialized(_) => {
+            // No payer yet, leave as 0
+        }
         EntitySnapshot::Initiated(e) => {
             model.payer = Set(e.payer.0 as i64);
         }
@@ -128,6 +131,8 @@ pub fn model_to_entity(model: &upi_txn::Model) -> Result<EntitySnapshot, Convers
     let payer = PayerId(model.payer as u64);
 
     match model.state.as_str() {
+        "Uninitialized" => Ok(EntitySnapshot::Uninitialized(UninitializedEntity { id })),
+
         "Initiated" => Ok(EntitySnapshot::Initiated(InitiatedEntity { id, payer })),
 
         "Authenticated" => {

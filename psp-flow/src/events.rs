@@ -13,7 +13,15 @@ pub use driver_framework::Event;
 
 #[derive(Clone, Copy)]
 #[cfg_attr(feature = "runtime", derive(Debug, PartialEq, Eq))]
-pub enum Party { User, Npci }
+pub enum Party { System, User, Npci }
+
+// ---- System interactions (initialization) -------------------------------------------
+
+/// Initial event: waiting for the payer ID to start the flow.
+#[derive(Clone, Copy)]
+#[cfg_attr(feature = "runtime", derive(Debug, PartialEq, Eq))]
+pub struct Init { pub id: TxnId }
+impl Event for Init { type Response = PayerId; }
 
 // ---- User interactions --------------------------------------------------------------
 
@@ -83,6 +91,7 @@ impl Event for AwaitForcedReversal { type Response = (); }
 #[derive(Clone, Copy)]
 #[cfg_attr(feature = "runtime", derive(Debug, PartialEq, Eq))]
 pub enum AnyEvent {
+    Init(Init),
     GetPaymentIntent(GetPaymentIntent),
     ShowError(ShowError),
     CollectMpin(CollectMpin),
@@ -98,6 +107,7 @@ pub enum AnyEvent {
 #[derive(Clone, Copy)]
 #[cfg_attr(feature = "runtime", derive(Debug, PartialEq, Eq))]
 pub enum AnyResponse {
+    Init(PayerId),
     Intent(RawIntent),
     Mpin(Mpin),
     Unit,
@@ -109,6 +119,7 @@ pub enum AnyResponse {
 impl AnyEvent {
     pub fn party(&self) -> Party {
         match self {
+            AnyEvent::Init(_) => Party::System,
             AnyEvent::GetPaymentIntent(_) | AnyEvent::ShowError(_) | AnyEvent::CollectMpin(_) | AnyEvent::Notify(_) => Party::User,
             AnyEvent::ReqPay(_) | AnyEvent::AwaitCallback(_) | AnyEvent::AwaitDeemedResolution(_) | AnyEvent::AwaitForcedReversal(_) => Party::Npci,
         }

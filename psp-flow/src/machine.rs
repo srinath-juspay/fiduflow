@@ -26,6 +26,8 @@ macro_rules! wait_point {
     };
 }
 
+// Initial state: waiting for payer ID to start the flow
+wait_point!(AtInit                 { id: TxnId });
 wait_point!(AtGetPaymentIntent     { txn: Txn<Initiated> });
 wait_point!(AtShowError            { txn: Txn<Initiated>, reason: Reason });
 wait_point!(AtCollectMpin          { txn: Txn<Initiated>, intent: ValidIntent });
@@ -46,6 +48,7 @@ wait_point!(AtNotifyReversed       { txn: Txn<ReversalPending> });
 #[derive(Clone, Copy)]
 #[cfg_attr(feature = "runtime", derive(Debug, PartialEq, Eq))]
 pub enum PayerPay {
+    AtInit(AtInit),
     AtGetPaymentIntent(AtGetPaymentIntent),
     AtShowError(AtShowError),
     AtCollectMpin(AtCollectMpin),
@@ -67,9 +70,29 @@ pub enum PayerPay {
 pub type Next = driver_framework::Next<PayerPay, Txn<Terminal>>;
 pub use driver_framework::WaitPoint;
 
-/// Entry: `PayerPSP_Pay(payer_id)`.
+/// Entry: Creates initial state waiting for payer ID.
+pub fn initial(id: TxnId) -> PayerPay {
+    PayerPay::AtInit(AtInit { id })
+}
+
+/// Legacy entry: `PayerPSP_Pay(payer_id)` - creates flow with payer already set.
+#[deprecated(note = "Use initial() + Init response instead")]
 pub fn start(id: TxnId, payer: PayerId) -> PayerPay {
     PayerPay::AtGetPaymentIntent(AtGetPaymentIntent { txn: Txn::new(id, payer) })
+}
+
+// ---- init ----------------------------------------------------------------------------
+
+impl WaitPoint<PayerPay, Txn<Terminal>> for AtInit {
+    type Event = Init;
+    fn event(&self) -> Init {
+        Init { id: self.id }
+    }
+    fn resume(self, payer: <Init as Event>::Response) -> Next {
+        Next::Wait(PayerPay::AtGetPaymentIntent(AtGetPaymentIntent {
+            txn: Txn::new(self.id, payer),
+        }))
+    }
 }
 
 // ---- collect_intent ------------------------------------------------------------------
@@ -256,6 +279,7 @@ pub enum Mismatch {
 /// What a bookmark is waiting on, as data.
 pub fn event(s: &PayerPay) -> AnyEvent {
     match s {
+        PayerPay::AtInit(w) => AnyEvent::Init(w.event()),
         PayerPay::AtGetPaymentIntent(w) => AnyEvent::GetPaymentIntent(w.event()),
         PayerPay::AtShowError(w) => AnyEvent::ShowError(w.event()),
         PayerPay::AtCollectMpin(w) => AnyEvent::CollectMpin(w.event()),
@@ -278,6 +302,7 @@ pub fn event(s: &PayerPay) -> AnyEvent {
 /// can occur; inside `resume` the types make it impossible.
 pub fn deliver(s: PayerPay, r: AnyResponse) -> Result<Next, Mismatch> {
     Ok(match (s, r) {
+        (PayerPay::AtInit(w), AnyResponse::Init(payer)) => w.resume(payer),
         (PayerPay::AtGetPaymentIntent(w), AnyResponse::Intent(raw)) => w.resume(raw),
         (PayerPay::AtShowError(w), AnyResponse::Unit) => w.resume(()),
         (PayerPay::AtCollectMpin(w), AnyResponse::Mpin(mpin)) => w.resume(mpin),

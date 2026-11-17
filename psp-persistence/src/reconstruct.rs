@@ -7,24 +7,10 @@
 use crate::context::FlowContext;
 use crate::entity::*;
 use crate::message_data::*;
+use driver_framework::ReconstructError;
 use psp_flow::entity::*;
 use psp_flow::machine::*;
 use psp_flow::values::*;
-
-/// Errors that can occur during reconstruction.
-#[derive(Debug, Clone, PartialEq, Eq)]
-pub enum ReconstructError {
-    /// No pending message found in the message list.
-    NoPendingMessage,
-    /// The entity state and message type combination is invalid.
-    InvalidStateMessageCombination { state: &'static str, message_type: String },
-    /// Missing required data from message history.
-    MissingMessageData(&'static str),
-    /// The entity snapshot is a terminal state.
-    TerminalState,
-    /// Failed to deserialize JSON.
-    JsonError(String),
-}
 
 /// Find the pending message from the message list.
 fn find_pending_message(messages: &[MessageRecord]) -> Option<&MessageRecord> {
@@ -75,6 +61,11 @@ pub fn reconstruct(
     let message_type = current.message_type.as_str();
 
     match (entity, message_type) {
+        // Uninitialized state (waiting for payer ID)
+        (EntitySnapshot::Uninitialized(e), "Init") => {
+            Ok(PayerPay::AtInit(AtInit { id: e.id }))
+        }
+
         // Initiated state combinations
         (EntitySnapshot::Initiated(e), "GetPaymentIntent") => {
             let txn = Txn {

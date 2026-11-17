@@ -4,6 +4,10 @@ edition.workspace = true
 version.workspace = true
 description = "The UPI pay flow bound to the framework: Flow impl, the application's tables, demo and tests."
 
+[features]
+default = []
+sqlite = ["psp-persistence-sea/sqlite"]
+
 [dependencies]
 psp_flow = { path = "../psp-flow", features = ["runtime"] }
 psp-persistence = { path = "../psp-persistence" }
@@ -11,6 +15,5 @@ psp-persistence-sea = { path = "../psp-persistence-sea" }
 driver-framework = { path = "../driver-framework" }
 tokio = { version = "1", features = ["rt-multi-thread", "macros"] }
 
-# Legacy support - will be removed once migration is complete
-# store-framework = { path = "../store-framework" }
-# rusqlite = { workspace = true }
+[dev-dependencies]
+sea-orm = { version = "0.12", default-features = false, features = ["runtime-tokio-rustls", "sqlx-sqlite"] }

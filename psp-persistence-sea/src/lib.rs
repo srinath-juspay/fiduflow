@@ -9,4 +9,4 @@ pub mod conversions;
 pub mod models;
 pub mod store;
 
-pub use store::SeaFlowStore;
+pub use store::{SeaFlowStore, StoreError};

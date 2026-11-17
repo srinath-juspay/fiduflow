@@ -7,6 +7,7 @@
 //! can depend on it without gaining any way to do IO.
 
 use core::fmt::Debug;
+use core::hash::Hash;
 
 /// An interaction with the outside world, co-defined with the type of its answer.
 pub trait Event {
@@ -26,6 +27,8 @@ pub trait WaitPoint<S, D> {
 pub trait Flow {
     /// Stable name, used to key instances in storage.
     const NAME: &'static str;
+    /// The unique identifier for flow instances.
+    type Id: Copy + Debug + Eq + Hash;
     /// The bookmark: one variant per wait point, carrying the locals live there.
     type State: Copy + Debug;
     /// What a finished instance leaves behind (typically the terminal entity).
@@ -35,6 +38,10 @@ pub trait Flow {
     /// What the outside world answers.
     type Response: Debug;
 
+    /// Create the initial state for a new flow instance.
+    /// The initial state waits for the first response to configure the flow.
+    fn initial(id: Self::Id) -> Self::State;
+    /// Get the event that a bookmark is waiting on.
     fn event(s: &Self::State) -> Self::Event;
     /// Consume a response at bookmark `s`. A refusal leaves the instance unchanged.
     fn step(s: Self::State, r: Self::Response) -> Result<Next<Self::State, Self::Done>, Refused>;
