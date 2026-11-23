@@ -20,30 +20,30 @@ set_option maxRecDepth 2048
 namespace psp_flow_dsl
 
 /-- Trait declaration: [driver_framework::machine::Event]
-    Source: 'driver-framework/src/machine.rs', lines 12:0-12:15
+    Source: 'driver-framework/src/machine.rs', lines 13:0-13:15
     Name pattern: [driver_framework::machine::Event]
     Visibility: public -/
 @[rust_trait "driver_framework::machine::Event"]
-structure driver_framework.machine.Event (Self : Type) (Self_Response : Type)
-  where
+structure driver_framework.machine.Event (Self : Type _) (Self_Response :
+  Type _) where
 
 /-- [driver_framework::machine::Next]
-    Source: 'driver-framework/src/machine.rs', lines 55:0-55:19
+    Source: 'driver-framework/src/machine.rs', lines 62:0-62:19
     Name pattern: [driver_framework::machine::Next]
     Visibility: public -/
 @[discriminant isize, rust_type "driver_framework::machine::Next"]
-inductive driver_framework.machine.Next (S : Type) (D : Type) where
+inductive driver_framework.machine.Next (S : Type _) (D : Type _) where
 | Wait : S → driver_framework.machine.Next S D
 | Done : D → driver_framework.machine.Next S D
 
 /-- Trait declaration: [driver_framework::machine::WaitPoint]
-    Source: 'driver-framework/src/machine.rs', lines 20:0-20:25
+    Source: 'driver-framework/src/machine.rs', lines 21:0-21:25
     Name pattern: [driver_framework::machine::WaitPoint]
     Visibility: public -/
 @[rust_trait "driver_framework::machine::WaitPoint"
   (parentClauses := ["EventInst"])]
-structure driver_framework.machine.WaitPoint (Self : Type) (S : Type) (D :
-  Type) (Self_Event : Type) (Self_Clause0_Response : Type) where
+structure driver_framework.machine.WaitPoint (Self : Type _) (S : Type _) (D :
+  Type _) (Self_Event : Type _) (Self_Clause0_Response : Type _) where
   EventInst : driver_framework.machine.Event Self_Event Self_Clause0_Response
   event : Self → Result Self_Event
   resume : Self → Self_Clause0_Response → Result
@@ -185,7 +185,7 @@ def values.TxnId := Std.U64
 /-- [psp_flow_dsl::entity::Txn]
     Source: 'psp-flow-dsl/src/lib.rs', lines 19:0-145:1
     Visibility: public -/
-structure entity.Txn (S : Type) where
+structure entity.Txn (S : Type _) where
   id : values.TxnId
   data : S
 

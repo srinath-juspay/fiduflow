@@ -255,7 +255,8 @@ def values.TxnId.Insts.CoreCloneClone.clone
     Source: 'psp-flow-dsl/src/lib.rs', lines 19:0-145:1
     Visibility: public -/
 def entity.Txn.Insts.CoreCloneClone.clone
-  {S : Type} (corecloneCloneInst : core.clone.Clone S) (self : entity.Txn S) :
+  {S : Type _} (corecloneCloneInst : core.clone.Clone S) (self : entity.Txn S)
+  :
   Result (entity.Txn S)
   := do
   let ti ← values.TxnId.Insts.CoreCloneClone.clone self.id
@@ -265,7 +266,7 @@ def entity.Txn.Insts.CoreCloneClone.clone
 /-- Trait implementation: [psp_flow_dsl::entity::{impl core::clone::Clone for psp_flow_dsl::entity::Txn<S>}]
     Source: 'psp-flow-dsl/src/lib.rs', lines 19:0-145:1 -/
 @[reducible]
-def entity.Txn.Insts.CoreCloneClone {S : Type} (corecloneCloneInst :
+def entity.Txn.Insts.CoreCloneClone {S : Type _} (corecloneCloneInst :
   core.clone.Clone S) : core.clone.Clone (entity.Txn S) := {
   clone := entity.Txn.Insts.CoreCloneClone.clone corecloneCloneInst
 }
@@ -273,7 +274,7 @@ def entity.Txn.Insts.CoreCloneClone {S : Type} (corecloneCloneInst :
 /-- Trait implementation: [psp_flow_dsl::entity::{impl core::marker::Copy for psp_flow_dsl::entity::Txn<S>}]
     Source: 'psp-flow-dsl/src/lib.rs', lines 19:0-145:1 -/
 @[reducible]
-def entity.Txn.Insts.CoreMarkerCopy {S : Type} (coremarkerCopyInst :
+def entity.Txn.Insts.CoreMarkerCopy {S : Type _} (coremarkerCopyInst :
   core.marker.Copy S) : core.marker.Copy (entity.Txn S) := {
   cloneInst := entity.Txn.Insts.CoreCloneClone coremarkerCopyInst.cloneInst
 }

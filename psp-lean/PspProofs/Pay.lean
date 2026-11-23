@@ -25,6 +25,7 @@ open driver_framework.machine
 
 /-- One typed step: the wait point `s` resumed with a response of its event's type. -/
 inductive Steps : PayerPay → Next PayerPay (Txn Terminal) → Prop
+  | atInit {w r n} : machine.AtInit.Insts.Driver_frameworkMachineWaitPointPayerPayTxnTerminalInitPayerId.resume w r = ok n → Steps (.AtInit w) n
   | atGetPaymentIntent {w r n} : machine.AtGetPaymentIntent.Insts.Driver_frameworkMachineWaitPointPayerPayTxnTerminalGetPaymentIntentRawIntent.resume w r = ok n → Steps (.AtGetPaymentIntent w) n
   | atShowError {w r n} : machine.AtShowError.Insts.Driver_frameworkMachineWaitPointPayerPayTxnTerminalShowErrorTuple.resume w r = ok n → Steps (.AtShowError w) n
   | atCollectMpin {w r n} : machine.AtCollectMpin.Insts.Driver_frameworkMachineWaitPointPayerPayTxnTerminalCollectMpinMpin.resume w r = ok n → Steps (.AtCollectMpin w) n
@@ -66,6 +67,7 @@ theorem deliver_sound {s r n} (h : deliver s r = ok (core.result.Result.Ok n)) :
 
 -- The simp set that evaluates the generated code once the wait point is a constructor.
 attribute [local simp] machine.event machine.start machine.deliver AnyEvent.is_user_notification
+  machine.AtInit.Insts.Driver_frameworkMachineWaitPointPayerPayTxnTerminalInitPayerId.resume machine.AtInit.Insts.Driver_frameworkMachineWaitPointPayerPayTxnTerminalInitPayerId.event
   machine.AtGetPaymentIntent.Insts.Driver_frameworkMachineWaitPointPayerPayTxnTerminalGetPaymentIntentRawIntent.resume machine.AtShowError.Insts.Driver_frameworkMachineWaitPointPayerPayTxnTerminalShowErrorTuple.resume machine.AtCollectMpin.Insts.Driver_frameworkMachineWaitPointPayerPayTxnTerminalCollectMpinMpin.resume machine.AtReqPay.Insts.Driver_frameworkMachineWaitPointPayerPayTxnTerminalReqPayReqPayResponse.resume
   machine.AtNotifyRejected.Insts.Driver_frameworkMachineWaitPointPayerPayTxnTerminalNotifyTuple.resume machine.AtAwaitCallback.Insts.Driver_frameworkMachineWaitPointPayerPayTxnTerminalAwaitCallbackCallback.resume machine.AtNotifySuccess.Insts.Driver_frameworkMachineWaitPointPayerPayTxnTerminalNotifyTuple.resume machine.AtNotifyFailed.Insts.Driver_frameworkMachineWaitPointPayerPayTxnTerminalNotifyTuple.resume
   machine.AtNotifyProcessing.Insts.Driver_frameworkMachineWaitPointPayerPayTxnTerminalNotifyTuple.resume machine.AtAwaitDeemed.Insts.Driver_frameworkMachineWaitPointPayerPayTxnTerminalAwaitDeemedResolutionResolution.resume machine.AtNotifyConfirmed.Insts.Driver_frameworkMachineWaitPointPayerPayTxnTerminalNotifyTuple.resume
@@ -119,6 +121,7 @@ theorem P5_reqpay_only_when_authenticated {s ev} (h : event s = ok (AnyEvent.Req
 /-! ## P4: every transaction terminates: at most `measure s + 1` interactions remain -/
 
 def measure : PayerPay → Nat
+  | .AtInit _ => 9
   | .AtGetPaymentIntent _ => 8
   | .AtCollectMpin _ => 7
   | .AtReqPay _ => 6
@@ -147,6 +150,7 @@ def isCollectMpin : AnyEvent → Bool
   | _ => false
 
 def mpinBudget : PayerPay → Nat
+  | .AtInit _ => 1
   | .AtGetPaymentIntent _ => 1
   | .AtCollectMpin _ => 1
   | _ => 0
@@ -181,6 +185,7 @@ theorem P2_from_start {id payer s0 evs t}
 /-! ## P6: entity value properties -/
 
 def idOf : PayerPay → TxnId
+  | .AtInit w => w.id
   | .AtGetPaymentIntent w => w.txn.id
   | .AtShowError w => w.txn.id
   | .AtCollectMpin w => w.txn.id
@@ -203,6 +208,7 @@ def amountOk (a : Amount) : Prop := a ≠ 0#u64 ∧ ¬ (a > MAX_AMOUNT_PAISE)
 /-- From the moment an intent has been validated, every request the entity carries has a
     valid amount. -/
 def Inv : PayerPay → Prop
+  | .AtInit _ => True
   | .AtGetPaymentIntent _ => True
   | .AtShowError _ => True
   | .AtCollectMpin w => amountOk w.intent.amount
