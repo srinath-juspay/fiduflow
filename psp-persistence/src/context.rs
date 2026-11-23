@@ -3,6 +3,18 @@
 //! - `FlowContext`: Typed cross-segment locals (re-exported from psp_flow)
 //! - `ContextData`: Generic JSON storage (re-exported from driver_framework)
 //! - `Segment`: Flow segment enum for querying by state
+//!
+//! # FlowContext Usage
+//!
+//! `FlowContext` stores cross-segment local variables that need to be preserved
+//! across the flow's lifecycle. Currently defined fields:
+//!
+//! - `is_high_value: bool` - Tracks high-value transactions (amount > 100,000 paise)
+//!
+//! **Note**: The `is_high_value` flag is a placeholder for future use. The
+//! `decompose` function currently uses `FlowContext::default()` for all states.
+//! To enable high-value tracking, `decompose` would need to compute this flag
+//! when transitioning to the Authenticated segment.
 
 // Re-export typed FlowContext from psp_flow
 pub use psp_flow::persist::FlowContext;

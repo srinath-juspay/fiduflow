@@ -22,6 +22,11 @@ use psp_flow::values::*;
 /// The MessageRecord has `id` = None (assigned by store) and
 /// `in_response_to` = None for await states (filled in by driver).
 pub fn decompose(bookmark: &PayerPay) -> (EntitySnapshot, FlowContext, MessageRecord) {
+    // TODO: Compute FlowContext based on bookmark state if cross-segment locals are needed.
+    // For example, to track high-value transactions:
+    //   - In Authenticated states, check if intent.amount > HIGH_VALUE_THRESHOLD
+    //   - In later states, preserve the flag from previous context (passed as param)
+    // For now, we use default() as no cross-segment locals are actively used.
     let ctx = FlowContext::default();
 
     match bookmark {

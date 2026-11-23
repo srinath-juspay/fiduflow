@@ -1,4 +1,24 @@
 //! Conversions between SeaORM models and persistence layer types.
+//!
+//! # Conversion Strategy
+//!
+//! This module converts between:
+//! - `EntitySnapshot` ↔ `upi_txn::Model` (entity state)
+//! - `MessageRecord` ↔ `events::Model` (message/event records)
+//! - `FlowContext` ↔ `flow_context::Model` (cross-segment locals)
+//!
+//! ## Entity Conversion
+//!
+//! The `upi_txn` table stores entities with nullable columns for fields that only
+//! exist in certain states. The `state` column determines which fields are valid.
+//! The `entity_to_model` function flattens the typed `EntitySnapshot` into this
+//! representation, and `model_to_entity` reconstructs the typed variant.
+//!
+//! ## Message Conversion
+//!
+//! Messages are stored with their JSON payload in the `message_body` column.
+//! Classification fields (`source`, `target`, `method`) are stored as strings
+//! and parsed back using `from_str` methods.
 
 use crate::models::{events, flow_context, upi_txn};
 use chrono::Utc;
@@ -247,7 +267,8 @@ pub fn message_to_model(txn_id: TxnId, id: String, message: &MessageRecord) -> e
         expects_async: Set(message.expects_async),
         // Payload
         message_type: Set(message.message_type.clone()),
-        message_body: Set(serde_json::to_string(&message.message_body).unwrap()),
+        message_body: Set(serde_json::to_string(&message.message_body)
+            .expect("message_body is a valid JSON Value and must serialize")),
         // Status
         status: Set(message.status.as_str().to_string()),
         created_at: Set(now),
@@ -286,7 +307,8 @@ pub fn model_to_message(model: &events::Model) -> Result<MessageRecord, Conversi
 pub fn context_to_model(txn_id: TxnId, ctx: &FlowContext) -> flow_context::ActiveModel {
     flow_context::ActiveModel {
         txn_id: Set(txn_id.0 as i64),
-        data: Set(serde_json::to_string(ctx).unwrap()),
+        data: Set(serde_json::to_string(ctx)
+            .expect("FlowContext derives Serialize and must serialize")),
     }
 }
 

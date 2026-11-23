@@ -2,6 +2,26 @@
 //!
 //! Each state has its own typed struct containing exactly the fields present in that state.
 //! This avoids Option-heavy designs and makes the data requirements explicit at the type level.
+//!
+//! # Entity State Transitions
+//!
+//! ```text
+//! Uninitialized  →  Initiated  →  Authenticated  →  Submitted  →  Success
+//!                      ↓               ↓               ↓             ↓
+//!                  Abandoned        Abandoned       Failed       Deemed → Success
+//!                                                                   ↓       ↓
+//!                                                              ReversalPending → Reversed
+//! ```
+//!
+//! # When Each Variant Is Used
+//!
+//! - **Uninitialized**: Flow started but payer not yet identified (AtInit)
+//! - **Initiated**: Payer identified, collecting intent/MPIN (AtGetPaymentIntent, AtShowError, AtCollectMpin)
+//! - **Authenticated**: MPIN collected, ready to submit (AtReqPay, AtNotifyRejected)
+//! - **Submitted**: Payment request sent to NPCI (AtAwaitCallback, AtNotify* states)
+//! - **Deemed**: NPCI returned uncertain status (AtAwaitDeemed, AtNotify* states)
+//! - **ReversalPending**: Reversal in progress (AtAwaitForcedReversal, AtNotify* states)
+//! - **Success/Failed/Reversed/Abandoned**: Terminal states (no wait points)
 
 use psp_flow::values::*;
 

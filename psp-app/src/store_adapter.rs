@@ -1,4 +1,22 @@
 //! Adapter to make SeaFlowStore work with the generic Driver.
+//!
+//! # Architecture
+//!
+//! This adapter bridges two trait hierarchies:
+//!
+//! ```text
+//! driver_framework::FlowStore<P: Persist>  ← Generic (any flow type)
+//!            ↓
+//!       PayFlowStore                       ← This adapter
+//!            ↓
+//! psp_persistence::FlowStore               ← Domain-specific (PSP types)
+//!            ↓
+//!       SeaFlowStore                       ← SeaORM implementation
+//! ```
+//!
+//! This indirection is intentional: it keeps `psp-persistence-sea` decoupled from
+//! `driver-framework`, allowing the SeaORM implementation to be reused or replaced
+//! without changing the generic driver code.
 
 use crate::{EntitySnapshot, FlowContext, PayFlow, TxnId};
 use driver_framework::{FlowStore, MessageRecord, MessageStatus};

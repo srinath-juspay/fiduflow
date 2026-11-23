@@ -27,8 +27,6 @@ pub use message_data::{
     UserCommand, SystemCommand,
     UserRequest, SystemNotification,
     UserSyncAck, UserAsyncResponse, SystemSyncAck, SystemAsyncCallback,
-    // Legacy
-    EventType,
 };
 pub use reconstruct::reconstruct;
 // Re-export from driver-framework

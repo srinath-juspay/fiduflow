@@ -15,8 +15,6 @@ pub use psp_flow::persist::{
     UserRequest, SystemNotification,
     // Incoming responses
     UserSyncAck, UserAsyncResponse, SystemSyncAck, SystemAsyncCallback,
-    // Legacy EventType for compatibility
-    EventType,
 };
 
 // Re-export generic message storage structures from driver_framework
