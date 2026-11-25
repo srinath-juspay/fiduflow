@@ -3,7 +3,7 @@
 #[cfg(all(test, feature = "sqlite"))]
 mod driver_tests {
     use crate::{
-        DeliverResult, Driver, EntitySnapshot, MessageStatus, PayFlow, PayerPay, PayerId,
+        DeliverResult, Driver, EntitySnapshot, FlowConfig, MessageStatus, PayFlow, PayerPay, PayerId,
         PayFlowStore, TxnId,
     };
     use psp_flow::values::{Amount, RawIntent, Vpa};
@@ -11,6 +11,9 @@ mod driver_tests {
     use psp_persistence::Actor;
     use psp_persistence_sea::SeaFlowStore;
     use sea_orm::Database;
+
+    // Default config for tests
+    fn cfg() -> FlowConfig { FlowConfig::default() }
 
     async fn setup_driver() -> Driver<PayFlow, PayFlowStore> {
         let db = Database::connect("sqlite::memory:").await.unwrap();
@@ -50,7 +53,7 @@ mod driver_tests {
 
         // Deliver Init response (payer ID)
         let result = driver
-            .deliver(txn_id, AnyResponse::Init(payer))
+            .deliver(txn_id, AnyResponse::Init(payer), &cfg())
             .await
             .unwrap();
 
@@ -76,7 +79,7 @@ mod driver_tests {
 
         // Init with payer
         driver
-            .deliver(txn_id, AnyResponse::Init(payer))
+            .deliver(txn_id, AnyResponse::Init(payer), &cfg())
             .await
             .unwrap();
 
@@ -86,7 +89,7 @@ mod driver_tests {
             amount: Amount(5000),
         };
         let result = driver
-            .deliver(txn_id, AnyResponse::Intent(raw_intent))
+            .deliver(txn_id, AnyResponse::Intent(raw_intent), &cfg())
             .await
             .unwrap();
 
@@ -110,7 +113,7 @@ mod driver_tests {
         // Start flow and init
         driver.start(txn_id).await.unwrap();
         driver
-            .deliver(txn_id, AnyResponse::Init(payer))
+            .deliver(txn_id, AnyResponse::Init(payer), &cfg())
             .await
             .unwrap();
 
@@ -120,13 +123,13 @@ mod driver_tests {
             amount: Amount(5000),
         };
         driver
-            .deliver(txn_id, AnyResponse::Intent(raw_intent))
+            .deliver(txn_id, AnyResponse::Intent(raw_intent), &cfg())
             .await
             .unwrap();
 
         // Acknowledge the error (which abandons the flow)
         let result = driver
-            .deliver(txn_id, AnyResponse::Unit)
+            .deliver(txn_id, AnyResponse::Unit, &cfg())
             .await
             .unwrap();
 
@@ -177,7 +180,7 @@ mod driver_tests {
         let driver = setup_driver().await;
 
         // Try to deliver to non-existent transaction
-        let result = driver.deliver(TxnId(999), AnyResponse::Unit).await;
+        let result = driver.deliver(TxnId(999), AnyResponse::Unit, &cfg()).await;
 
         assert!(matches!(
             result,
@@ -198,12 +201,15 @@ mod driver_tests {
 #[cfg(all(test, feature = "sqlite"))]
 mod recovery_tests {
     use crate::{
-        DeliverResult, Driver, EntitySnapshot, PayFlow, PayFlowStore, PayerPay, PayerId, TxnId,
+        DeliverResult, Driver, EntitySnapshot, FlowConfig, PayFlow, PayFlowStore, PayerPay, PayerId, TxnId,
     };
     use psp_flow::values::{Amount, Mpin, RawIntent, Vpa};
     use psp_flow::AnyResponse;
     use psp_persistence_sea::SeaFlowStore;
     use sea_orm::Database;
+
+    // Default config for tests
+    fn cfg() -> FlowConfig { FlowConfig::default() }
 
     // For recovery tests, we use a file-based database so we can
     // create multiple connections to simulate application restarts.
@@ -270,7 +276,7 @@ mod recovery_tests {
 
             // Continue the flow
             let result = driver
-                .deliver(TxnId(1), AnyResponse::Init(PayerId(42)))
+                .deliver(TxnId(1), AnyResponse::Init(PayerId(42)), &cfg())
                 .await
                 .unwrap();
             match result {
@@ -293,7 +299,7 @@ mod recovery_tests {
             let driver = connect_driver(&db_path).await;
             driver.start(TxnId(1)).await.unwrap();
             driver
-                .deliver(TxnId(1), AnyResponse::Init(PayerId(42)))
+                .deliver(TxnId(1), AnyResponse::Init(PayerId(42)), &cfg())
                 .await
                 .unwrap();
             // Crash at GetPaymentIntent
@@ -321,7 +327,7 @@ mod recovery_tests {
                 amount: Amount(5000),
             };
             let result = driver
-                .deliver(TxnId(1), AnyResponse::Intent(intent))
+                .deliver(TxnId(1), AnyResponse::Intent(intent), &cfg())
                 .await
                 .unwrap();
             match result {
@@ -344,7 +350,7 @@ mod recovery_tests {
             let driver = connect_driver(&db_path).await;
             driver.start(TxnId(1)).await.unwrap();
             driver
-                .deliver(TxnId(1), AnyResponse::Init(PayerId(42)))
+                .deliver(TxnId(1), AnyResponse::Init(PayerId(42)), &cfg())
                 .await
                 .unwrap();
             let intent = RawIntent {
@@ -352,7 +358,7 @@ mod recovery_tests {
                 amount: Amount(5000),
             };
             driver
-                .deliver(TxnId(1), AnyResponse::Intent(intent))
+                .deliver(TxnId(1), AnyResponse::Intent(intent), &cfg())
                 .await
                 .unwrap();
             // Crash at CollectMpin
@@ -376,7 +382,7 @@ mod recovery_tests {
 
             // Continue with MPIN
             let result = driver
-                .deliver(TxnId(1), AnyResponse::Mpin(Mpin(1234)))
+                .deliver(TxnId(1), AnyResponse::Mpin(Mpin(1234)), &cfg())
                 .await
                 .unwrap();
             match result {
@@ -399,7 +405,7 @@ mod recovery_tests {
             let driver = connect_driver(&db_path).await;
             driver.start(TxnId(1)).await.unwrap();
             driver
-                .deliver(TxnId(1), AnyResponse::Init(PayerId(42)))
+                .deliver(TxnId(1), AnyResponse::Init(PayerId(42)), &cfg())
                 .await
                 .unwrap();
             // Invalid intent: payee same as payer
@@ -408,7 +414,7 @@ mod recovery_tests {
                 amount: Amount(5000),
             };
             driver
-                .deliver(TxnId(1), AnyResponse::Intent(intent))
+                .deliver(TxnId(1), AnyResponse::Intent(intent), &cfg())
                 .await
                 .unwrap();
             // Crash at ShowError
@@ -425,7 +431,7 @@ mod recovery_tests {
 
             // Acknowledge error to complete flow
             let result = driver
-                .deliver(TxnId(1), AnyResponse::Unit)
+                .deliver(TxnId(1), AnyResponse::Unit, &cfg())
                 .await
                 .unwrap();
             match result {
@@ -457,14 +463,14 @@ mod recovery_tests {
             // Txn 2: At GetPaymentIntent
             driver.start(TxnId(2)).await.unwrap();
             driver
-                .deliver(TxnId(2), AnyResponse::Init(PayerId(100)))
+                .deliver(TxnId(2), AnyResponse::Init(PayerId(100)), &cfg())
                 .await
                 .unwrap();
 
             // Txn 3: At CollectMpin
             driver.start(TxnId(3)).await.unwrap();
             driver
-                .deliver(TxnId(3), AnyResponse::Init(PayerId(200)))
+                .deliver(TxnId(3), AnyResponse::Init(PayerId(200)), &cfg())
                 .await
                 .unwrap();
             let intent = RawIntent {
@@ -472,7 +478,7 @@ mod recovery_tests {
                 amount: Amount(10000),
             };
             driver
-                .deliver(TxnId(3), AnyResponse::Intent(intent))
+                .deliver(TxnId(3), AnyResponse::Intent(intent), &cfg())
                 .await
                 .unwrap();
 
@@ -500,18 +506,18 @@ mod recovery_tests {
 
             // Continue each transaction
             driver
-                .deliver(TxnId(1), AnyResponse::Init(PayerId(1)))
+                .deliver(TxnId(1), AnyResponse::Init(PayerId(1)), &cfg())
                 .await
                 .unwrap();
             driver
                 .deliver(TxnId(2), AnyResponse::Intent(RawIntent {
                     payee: Vpa(101),
                     amount: Amount(1000),
-                }))
+                }), &cfg())
                 .await
                 .unwrap();
             driver
-                .deliver(TxnId(3), AnyResponse::Mpin(Mpin(9999)))
+                .deliver(TxnId(3), AnyResponse::Mpin(Mpin(9999)), &cfg())
                 .await
                 .unwrap();
 
@@ -540,7 +546,7 @@ mod recovery_tests {
             // Start and complete with error (abandon)
             driver.start(TxnId(1)).await.unwrap();
             driver
-                .deliver(TxnId(1), AnyResponse::Init(PayerId(42)))
+                .deliver(TxnId(1), AnyResponse::Init(PayerId(42)), &cfg())
                 .await
                 .unwrap();
             let intent = RawIntent {
@@ -548,11 +554,11 @@ mod recovery_tests {
                 amount: Amount(5000),
             };
             driver
-                .deliver(TxnId(1), AnyResponse::Intent(intent))
+                .deliver(TxnId(1), AnyResponse::Intent(intent), &cfg())
                 .await
                 .unwrap();
             driver
-                .deliver(TxnId(1), AnyResponse::Unit)
+                .deliver(TxnId(1), AnyResponse::Unit, &cfg())
                 .await
                 .unwrap();
 
@@ -587,7 +593,7 @@ mod recovery_tests {
             let driver = connect_driver(&db_path).await;
             driver.start(TxnId(1)).await.unwrap();
             driver
-                .deliver(TxnId(1), AnyResponse::Init(PayerId(42)))
+                .deliver(TxnId(1), AnyResponse::Init(PayerId(42)), &cfg())
                 .await
                 .unwrap();
             let intent = RawIntent {
@@ -595,7 +601,7 @@ mod recovery_tests {
                 amount: Amount(5000),
             };
             driver
-                .deliver(TxnId(1), AnyResponse::Intent(intent))
+                .deliver(TxnId(1), AnyResponse::Intent(intent), &cfg())
                 .await
                 .unwrap();
             // Crash at CollectMpin

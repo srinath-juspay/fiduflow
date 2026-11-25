@@ -28,7 +28,7 @@ structure driver_framework.machine.Event (Self : Type _) (Self_Response :
   Type _) where
 
 /-- [driver_framework::machine::Next]
-    Source: 'driver-framework/src/machine.rs', lines 62:0-62:19
+    Source: 'driver-framework/src/machine.rs', lines 64:0-64:19
     Name pattern: [driver_framework::machine::Next]
     Visibility: public -/
 @[discriminant isize, rust_type "driver_framework::machine::Next"]
@@ -37,16 +37,17 @@ inductive driver_framework.machine.Next (S : Type _) (D : Type _) where
 | Done : D → driver_framework.machine.Next S D
 
 /-- Trait declaration: [driver_framework::machine::WaitPoint]
-    Source: 'driver-framework/src/machine.rs', lines 21:0-21:25
+    Source: 'driver-framework/src/machine.rs', lines 21:0-21:33
     Name pattern: [driver_framework::machine::WaitPoint]
     Visibility: public -/
 @[rust_trait "driver_framework::machine::WaitPoint"
   (parentClauses := ["EventInst"])]
 structure driver_framework.machine.WaitPoint (Self : Type _) (S : Type _) (D :
-  Type _) (Self_Event : Type _) (Self_Clause0_Response : Type _) where
+  Type _) (C : Type _) (Self_Event : Type _) (Self_Clause0_Response : Type _)
+  where
   EventInst : driver_framework.machine.Event Self_Event Self_Clause0_Response
   event : Self → Result Self_Event
-  resume : Self → Self_Clause0_Response → Result
+  resume : Self → Self_Clause0_Response → C → Result
     (driver_framework.machine.Next S D)
 
 /-- [psp_flow::values::PayerId]
@@ -248,14 +249,59 @@ inductive values.Status where
 structure events.Notify where
   status : values.Status
 
+/-- [psp_flow::events::AwaitOtp]
+    Source: 'psp-flow/src/events.rs', lines 53:0-53:42
+    Visibility: public -/
+structure events.AwaitOtp where
+  payer : values.PayerId
+
+/-- [psp_flow::events::OtpResult]
+    Source: 'psp-flow/src/events.rs', lines 56:0-60:1
+    Visibility: public -/
+@[discriminant isize]
+inductive events.OtpResult where
+| Valid : events.OtpResult
+| Invalid : events.OtpResult
+| Timeout : events.OtpResult
+
+/-- [psp_flow::events::AwaitApproval]
+    Source: 'psp-flow/src/events.rs', lines 66:0-66:48
+    Visibility: public -/
+structure events.AwaitApproval where
+  req : values.PayRequest
+
+/-- [psp_flow::events::ApprovalResult]
+    Source: 'psp-flow/src/events.rs', lines 69:0-73:1
+    Visibility: public -/
+@[discriminant isize]
+inductive events.ApprovalResult where
+| Approved : events.ApprovalResult
+| Rejected : events.ApprovalResult
+| Timeout : events.ApprovalResult
+
+/-- [psp_flow::events::EscalateToOps]
+    Source: 'psp-flow/src/events.rs', lines 81:0-81:46
+    Visibility: public -/
+structure events.EscalateToOps where
+  txn_id : values.TxnId
+
+/-- [psp_flow::events::OpsDecision]
+    Source: 'psp-flow/src/events.rs', lines 84:0-91:1
+    Visibility: public -/
+@[discriminant isize]
+inductive events.OpsDecision where
+| Reverse : events.OpsDecision
+| Retry : events.OpsDecision
+| Fail : events.OpsDecision
+
 /-- [psp_flow::events::ReqPay]
-    Source: 'psp-flow/src/events.rs', lines 52:0-52:41
+    Source: 'psp-flow/src/events.rs', lines 98:0-98:41
     Visibility: public -/
 structure events.ReqPay where
   req : values.PayRequest
 
 /-- [psp_flow::events::ReqPayResponse]
-    Source: 'psp-flow/src/events.rs', lines 55:0-55:60
+    Source: 'psp-flow/src/events.rs', lines 101:0-101:60
     Visibility: public -/
 @[discriminant isize]
 inductive events.ReqPayResponse where
@@ -263,13 +309,13 @@ inductive events.ReqPayResponse where
 | Rejected : values.Reason → events.ReqPayResponse
 
 /-- [psp_flow::events::AwaitCallback]
-    Source: 'psp-flow/src/events.rs', lines 60:0-60:50
+    Source: 'psp-flow/src/events.rs', lines 106:0-106:50
     Visibility: public -/
 structure events.AwaitCallback where
   timeout_secs : Std.U64
 
 /-- [psp_flow::events::Callback]
-    Source: 'psp-flow/src/events.rs', lines 63:0-68:1
+    Source: 'psp-flow/src/events.rs', lines 109:0-114:1
     Visibility: public -/
 @[discriminant isize]
 inductive events.Callback where
@@ -279,13 +325,13 @@ inductive events.Callback where
 | Timeout : events.Callback
 
 /-- [psp_flow::events::AwaitDeemedResolution]
-    Source: 'psp-flow/src/events.rs', lines 73:0-73:59
+    Source: 'psp-flow/src/events.rs', lines 119:0-119:59
     Visibility: public -/
 structure events.AwaitDeemedResolution where
   deadline_days : Std.U64
 
 /-- [psp_flow::events::Resolution]
-    Source: 'psp-flow/src/events.rs', lines 76:0-80:1
+    Source: 'psp-flow/src/events.rs', lines 122:0-126:1
     Visibility: public -/
 @[discriminant isize]
 inductive events.Resolution where
@@ -294,13 +340,13 @@ inductive events.Resolution where
 | DeadlineExpired : events.Resolution
 
 /-- [psp_flow::events::AwaitForcedReversal]
-    Source: 'psp-flow/src/events.rs', lines 85:0-85:57
+    Source: 'psp-flow/src/events.rs', lines 131:0-131:57
     Visibility: public -/
 structure events.AwaitForcedReversal where
   deadline_days : Std.U64
 
 /-- [psp_flow::events::AnyEvent]
-    Source: 'psp-flow/src/events.rs', lines 93:0-103:1
+    Source: 'psp-flow/src/events.rs', lines 139:0-155:1
     Visibility: public -/
 @[discriminant isize]
 inductive events.AnyEvent where
@@ -309,13 +355,16 @@ inductive events.AnyEvent where
 | ShowError : events.ShowError → events.AnyEvent
 | CollectMpin : events.CollectMpin → events.AnyEvent
 | Notify : events.Notify → events.AnyEvent
+| AwaitOtp : events.AwaitOtp → events.AnyEvent
+| AwaitApproval : events.AwaitApproval → events.AnyEvent
 | ReqPay : events.ReqPay → events.AnyEvent
 | AwaitCallback : events.AwaitCallback → events.AnyEvent
 | AwaitDeemedResolution : events.AwaitDeemedResolution → events.AnyEvent
 | AwaitForcedReversal : events.AwaitForcedReversal → events.AnyEvent
+| EscalateToOps : events.EscalateToOps → events.AnyEvent
 
 /-- [psp_flow::events::AnyResponse]
-    Source: 'psp-flow/src/events.rs', lines 109:0-117:1
+    Source: 'psp-flow/src/events.rs', lines 161:0-175:1
     Visibility: public -/
 @[discriminant isize]
 inductive events.AnyResponse where
@@ -323,45 +372,62 @@ inductive events.AnyResponse where
 | Intent : values.RawIntent → events.AnyResponse
 | Mpin : values.Mpin → events.AnyResponse
 | Unit : events.AnyResponse
+| Otp : events.OtpResult → events.AnyResponse
+| Approval : events.ApprovalResult → events.AnyResponse
 | ReqPay : events.ReqPayResponse → events.AnyResponse
 | Callback : events.Callback → events.AnyResponse
 | Resolution : events.Resolution → events.AnyResponse
+| OpsDecision : events.OpsDecision → events.AnyResponse
 
 /-- [psp_flow::machine::AtInit]
-    Source: 'psp-flow/src/machine.rs', lines 25:8-25:49; this code is generated from a macro invocation at: 'psp-flow/src/machine.rs', lines 30:0-30:49
+    Source: 'psp-flow/src/machine.rs', lines 26:8-26:49; this code is generated from a macro invocation at: 'psp-flow/src/machine.rs', lines 31:0-31:49
     Visibility: public -/
 structure machine.AtInit where
   id : values.TxnId
 
 /-- [psp_flow::machine::AtGetPaymentIntent]
-    Source: 'psp-flow/src/machine.rs', lines 25:8-25:49; this code is generated from a macro invocation at: 'psp-flow/src/machine.rs', lines 31:0-31:59
+    Source: 'psp-flow/src/machine.rs', lines 26:8-26:49; this code is generated from a macro invocation at: 'psp-flow/src/machine.rs', lines 32:0-32:59
     Visibility: public -/
 structure machine.AtGetPaymentIntent where
   txn : entity.Txn entity.Initiated
 
 /-- [psp_flow::machine::AtShowError]
-    Source: 'psp-flow/src/machine.rs', lines 25:8-25:49; this code is generated from a macro invocation at: 'psp-flow/src/machine.rs', lines 32:0-32:75
+    Source: 'psp-flow/src/machine.rs', lines 26:8-26:49; this code is generated from a macro invocation at: 'psp-flow/src/machine.rs', lines 33:0-33:75
     Visibility: public -/
 structure machine.AtShowError where
   txn : entity.Txn entity.Initiated
   reason : values.Reason
 
 /-- [psp_flow::machine::AtCollectMpin]
-    Source: 'psp-flow/src/machine.rs', lines 25:8-25:49; this code is generated from a macro invocation at: 'psp-flow/src/machine.rs', lines 33:0-33:80
+    Source: 'psp-flow/src/machine.rs', lines 26:8-26:49; this code is generated from a macro invocation at: 'psp-flow/src/machine.rs', lines 34:0-34:80
     Visibility: public -/
 structure machine.AtCollectMpin where
   txn : entity.Txn entity.Initiated
   intent : values.ValidIntent
 
+/-- [psp_flow::machine::AtAwaitOtp]
+    Source: 'psp-flow/src/machine.rs', lines 26:8-26:49; this code is generated from a macro invocation at: 'psp-flow/src/machine.rs', lines 36:0-36:80
+    Visibility: public -/
+structure machine.AtAwaitOtp where
+  txn : entity.Txn entity.Authenticated
+  req : values.PayRequest
+
+/-- [psp_flow::machine::AtAwaitApproval]
+    Source: 'psp-flow/src/machine.rs', lines 26:8-26:49; this code is generated from a macro invocation at: 'psp-flow/src/machine.rs', lines 37:0-37:80
+    Visibility: public -/
+structure machine.AtAwaitApproval where
+  txn : entity.Txn entity.Authenticated
+  req : values.PayRequest
+
 /-- [psp_flow::machine::AtReqPay]
-    Source: 'psp-flow/src/machine.rs', lines 25:8-25:49; this code is generated from a macro invocation at: 'psp-flow/src/machine.rs', lines 34:0-34:80
+    Source: 'psp-flow/src/machine.rs', lines 26:8-26:49; this code is generated from a macro invocation at: 'psp-flow/src/machine.rs', lines 38:0-38:80
     Visibility: public -/
 structure machine.AtReqPay where
   txn : entity.Txn entity.Authenticated
   req : values.PayRequest
 
 /-- [psp_flow::machine::AtNotifyRejected]
-    Source: 'psp-flow/src/machine.rs', lines 25:8-25:49; this code is generated from a macro invocation at: 'psp-flow/src/machine.rs', lines 35:0-35:96
+    Source: 'psp-flow/src/machine.rs', lines 26:8-26:49; this code is generated from a macro invocation at: 'psp-flow/src/machine.rs', lines 39:0-39:96
     Visibility: public -/
 structure machine.AtNotifyRejected where
   txn : entity.Txn entity.Authenticated
@@ -369,13 +435,13 @@ structure machine.AtNotifyRejected where
   reason : values.Reason
 
 /-- [psp_flow::machine::AtAwaitCallback]
-    Source: 'psp-flow/src/machine.rs', lines 25:8-25:49; this code is generated from a macro invocation at: 'psp-flow/src/machine.rs', lines 36:0-36:59
+    Source: 'psp-flow/src/machine.rs', lines 26:8-26:49; this code is generated from a macro invocation at: 'psp-flow/src/machine.rs', lines 40:0-40:59
     Visibility: public -/
 structure machine.AtAwaitCallback where
   txn : entity.Txn entity.Submitted
 
 /-- [psp_flow::machine::AtNotifySuccess]
-    Source: 'psp-flow/src/machine.rs', lines 25:8-25:49; this code is generated from a macro invocation at: 'psp-flow/src/machine.rs', lines 37:0-37:92
+    Source: 'psp-flow/src/machine.rs', lines 26:8-26:49; this code is generated from a macro invocation at: 'psp-flow/src/machine.rs', lines 41:0-41:92
     Visibility: public -/
 structure machine.AtNotifySuccess where
   txn : entity.Txn entity.Submitted
@@ -383,57 +449,64 @@ structure machine.AtNotifySuccess where
   credit_ref : values.Ref
 
 /-- [psp_flow::machine::AtNotifyFailed]
-    Source: 'psp-flow/src/machine.rs', lines 25:8-25:49; this code is generated from a macro invocation at: 'psp-flow/src/machine.rs', lines 38:0-38:75
+    Source: 'psp-flow/src/machine.rs', lines 26:8-26:49; this code is generated from a macro invocation at: 'psp-flow/src/machine.rs', lines 42:0-42:75
     Visibility: public -/
 structure machine.AtNotifyFailed where
   txn : entity.Txn entity.Submitted
   reason : values.Reason
 
 /-- [psp_flow::machine::AtNotifyProcessing]
-    Source: 'psp-flow/src/machine.rs', lines 25:8-25:49; this code is generated from a macro invocation at: 'psp-flow/src/machine.rs', lines 39:0-39:59
+    Source: 'psp-flow/src/machine.rs', lines 26:8-26:49; this code is generated from a macro invocation at: 'psp-flow/src/machine.rs', lines 43:0-43:59
     Visibility: public -/
 structure machine.AtNotifyProcessing where
   txn : entity.Txn entity.Submitted
 
 /-- [psp_flow::machine::AtAwaitDeemed]
-    Source: 'psp-flow/src/machine.rs', lines 25:8-25:49; this code is generated from a macro invocation at: 'psp-flow/src/machine.rs', lines 40:0-40:56
+    Source: 'psp-flow/src/machine.rs', lines 26:8-26:49; this code is generated from a macro invocation at: 'psp-flow/src/machine.rs', lines 44:0-44:56
     Visibility: public -/
 structure machine.AtAwaitDeemed where
   txn : entity.Txn entity.Deemed
 
+/-- [psp_flow::machine::AtEscalateToOps]
+    Source: 'psp-flow/src/machine.rs', lines 26:8-26:49; this code is generated from a macro invocation at: 'psp-flow/src/machine.rs', lines 46:0-46:79
+    Visibility: public -/
+structure machine.AtEscalateToOps where
+  txn : entity.Txn entity.Deemed
+  retries_remaining : Std.U8
+
 /-- [psp_flow::machine::AtNotifyConfirmed]
-    Source: 'psp-flow/src/machine.rs', lines 25:8-25:49; this code is generated from a macro invocation at: 'psp-flow/src/machine.rs', lines 41:0-41:73
+    Source: 'psp-flow/src/machine.rs', lines 26:8-26:49; this code is generated from a macro invocation at: 'psp-flow/src/machine.rs', lines 47:0-47:73
     Visibility: public -/
 structure machine.AtNotifyConfirmed where
   txn : entity.Txn entity.Deemed
   credit_ref : values.Ref
 
 /-- [psp_flow::machine::AtNotifyDeemedReversed]
-    Source: 'psp-flow/src/machine.rs', lines 25:8-25:49; this code is generated from a macro invocation at: 'psp-flow/src/machine.rs', lines 42:0-42:56
+    Source: 'psp-flow/src/machine.rs', lines 26:8-26:49; this code is generated from a macro invocation at: 'psp-flow/src/machine.rs', lines 48:0-48:56
     Visibility: public -/
 structure machine.AtNotifyDeemedReversed where
   txn : entity.Txn entity.Deemed
 
 /-- [psp_flow::machine::AtNotifyReversalStart]
-    Source: 'psp-flow/src/machine.rs', lines 25:8-25:49; this code is generated from a macro invocation at: 'psp-flow/src/machine.rs', lines 43:0-43:65
+    Source: 'psp-flow/src/machine.rs', lines 26:8-26:49; this code is generated from a macro invocation at: 'psp-flow/src/machine.rs', lines 49:0-49:65
     Visibility: public -/
 structure machine.AtNotifyReversalStart where
   txn : entity.Txn entity.ReversalPending
 
 /-- [psp_flow::machine::AtAwaitForcedReversal]
-    Source: 'psp-flow/src/machine.rs', lines 25:8-25:49; this code is generated from a macro invocation at: 'psp-flow/src/machine.rs', lines 44:0-44:65
+    Source: 'psp-flow/src/machine.rs', lines 26:8-26:49; this code is generated from a macro invocation at: 'psp-flow/src/machine.rs', lines 50:0-50:65
     Visibility: public -/
 structure machine.AtAwaitForcedReversal where
   txn : entity.Txn entity.ReversalPending
 
 /-- [psp_flow::machine::AtNotifyReversed]
-    Source: 'psp-flow/src/machine.rs', lines 25:8-25:49; this code is generated from a macro invocation at: 'psp-flow/src/machine.rs', lines 45:0-45:65
+    Source: 'psp-flow/src/machine.rs', lines 26:8-26:49; this code is generated from a macro invocation at: 'psp-flow/src/machine.rs', lines 51:0-51:65
     Visibility: public -/
 structure machine.AtNotifyReversed where
   txn : entity.Txn entity.ReversalPending
 
 /-- [psp_flow::machine::PayerPay]
-    Source: 'psp-flow/src/machine.rs', lines 50:0-67:1
+    Source: 'psp-flow/src/machine.rs', lines 56:0-78:1
     Visibility: public -/
 @[discriminant isize]
 inductive machine.PayerPay where
@@ -441,6 +514,8 @@ inductive machine.PayerPay where
 | AtGetPaymentIntent : machine.AtGetPaymentIntent → machine.PayerPay
 | AtShowError : machine.AtShowError → machine.PayerPay
 | AtCollectMpin : machine.AtCollectMpin → machine.PayerPay
+| AtAwaitOtp : machine.AtAwaitOtp → machine.PayerPay
+| AtAwaitApproval : machine.AtAwaitApproval → machine.PayerPay
 | AtReqPay : machine.AtReqPay → machine.PayerPay
 | AtNotifyRejected : machine.AtNotifyRejected → machine.PayerPay
 | AtAwaitCallback : machine.AtAwaitCallback → machine.PayerPay
@@ -448,14 +523,40 @@ inductive machine.PayerPay where
 | AtNotifyFailed : machine.AtNotifyFailed → machine.PayerPay
 | AtNotifyProcessing : machine.AtNotifyProcessing → machine.PayerPay
 | AtAwaitDeemed : machine.AtAwaitDeemed → machine.PayerPay
+| AtEscalateToOps : machine.AtEscalateToOps → machine.PayerPay
 | AtNotifyConfirmed : machine.AtNotifyConfirmed → machine.PayerPay
 | AtNotifyDeemedReversed : machine.AtNotifyDeemedReversed → machine.PayerPay
 | AtNotifyReversalStart : machine.AtNotifyReversalStart → machine.PayerPay
 | AtAwaitForcedReversal : machine.AtAwaitForcedReversal → machine.PayerPay
 | AtNotifyReversed : machine.AtNotifyReversed → machine.PayerPay
 
+/-- [psp_flow::values::HighValueMode]
+    Source: 'psp-flow/src/values.rs', lines 115:0-123:1
+    Visibility: public -/
+@[discriminant isize]
+inductive values.HighValueMode where
+| Standard : values.HighValueMode
+| RequireOtp : values.HighValueMode
+| RequireApproval : values.HighValueMode
+
+/-- [psp_flow::values::DeemedPolicy]
+    Source: 'psp-flow/src/values.rs', lines 100:0-109:1
+    Visibility: public -/
+@[discriminant isize]
+inductive values.DeemedPolicy where
+| WaitForResolution : values.DeemedPolicy
+| AutoReverse : values.DeemedPolicy
+| Escalate : values.DeemedPolicy
+
+/-- [psp_flow::values::FlowConfig]
+    Source: 'psp-flow/src/values.rs', lines 131:0-136:1
+    Visibility: public -/
+structure values.FlowConfig where
+  deemed_policy : values.DeemedPolicy
+  high_value_mode : values.HighValueMode
+
 /-- [psp_flow::machine::Mismatch]
-    Source: 'psp-flow/src/machine.rs', lines 275:0-277:1
+    Source: 'psp-flow/src/machine.rs', lines 375:0-377:1
     Visibility: public -/
 @[discriminant isize]
 inductive machine.Mismatch where

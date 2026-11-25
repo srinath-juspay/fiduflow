@@ -1104,14 +1104,6 @@ dependencies = [
 ]
 
 [[package]]
-name = "psp_flow_dsl"
-version = "0.1.0"
-dependencies = [
- "driver-framework",
- "flow-macro",
-]
-
-[[package]]
 name = "quote"
 version = "1.0.47"
 source = "registry+https://github.com/rust-lang/crates.io-index"

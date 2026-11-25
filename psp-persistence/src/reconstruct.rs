@@ -104,6 +104,32 @@ pub fn reconstruct(
         }
 
         // Authenticated state combinations
+        (EntitySnapshot::Authenticated(e), "AwaitOtp") => {
+            let txn = Txn {
+                id: e.id,
+                data: Authenticated {
+                    payer: e.payer,
+                    intent: e.intent,
+                    mpin: e.mpin,
+                },
+            };
+            let req = txn.build_req_pay();
+            Ok(PayerPay::AtAwaitOtp(AtAwaitOtp { txn, req }))
+        }
+
+        (EntitySnapshot::Authenticated(e), "AwaitApproval") => {
+            let txn = Txn {
+                id: e.id,
+                data: Authenticated {
+                    payer: e.payer,
+                    intent: e.intent,
+                    mpin: e.mpin,
+                },
+            };
+            let req = txn.build_req_pay();
+            Ok(PayerPay::AtAwaitApproval(AtAwaitApproval { txn, req }))
+        }
+
         (EntitySnapshot::Authenticated(e), "ReqPay") => {
             let txn = Txn {
                 id: e.id,
@@ -174,6 +200,19 @@ pub fn reconstruct(
                 data: Deemed { req: e.req },
             };
             Ok(PayerPay::AtAwaitDeemed(AtAwaitDeemed { txn }))
+        }
+
+        (EntitySnapshot::Deemed(e), "EscalateToOps") => {
+            let txn = Txn {
+                id: e.id,
+                data: Deemed { req: e.req },
+            };
+            let retries_remaining = current.message_body
+                .get("retries_remaining")
+                .and_then(|v| v.as_u64())
+                .map(|v| v as u8)
+                .unwrap_or(MAX_OPS_RETRIES);
+            Ok(PayerPay::AtEscalateToOps(AtEscalateToOps { txn, retries_remaining }))
         }
 
         (EntitySnapshot::Deemed(e), "Notify") => {
@@ -365,6 +404,24 @@ mod tests {
     fn test_round_trip_at_await_deemed() {
         let txn = make_deemed_txn();
         round_trip(PayerPay::AtAwaitDeemed(AtAwaitDeemed { txn }));
+    }
+
+    #[test]
+    fn test_round_trip_at_escalate_to_ops() {
+        let txn = make_deemed_txn();
+        round_trip(PayerPay::AtEscalateToOps(AtEscalateToOps {
+            txn,
+            retries_remaining: MAX_OPS_RETRIES,
+        }));
+    }
+
+    #[test]
+    fn test_round_trip_at_escalate_to_ops_with_decremented_retries() {
+        let txn = make_deemed_txn();
+        round_trip(PayerPay::AtEscalateToOps(AtEscalateToOps {
+            txn,
+            retries_remaining: 1,
+        }));
     }
 
     #[test]

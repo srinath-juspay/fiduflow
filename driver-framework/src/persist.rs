@@ -240,13 +240,16 @@ impl<P: Persist, S: FlowStore<P>> Driver<P, S> {
     ///
     /// This implements the hybrid event-sourcing pattern:
     /// 1. Load current state and reconstruct the bookmark
-    /// 2. Step the flow with the response
+    /// 2. Step the flow with the response (using the given config)
     /// 3. Mark the old message as completed
     /// 4. Save the new state and outgoing message
+    ///
+    /// The config can change between deliver calls, allowing runtime policy changes.
     pub async fn deliver(
         &self,
         id: P::Id,
         response: P::Response,
+        config: &P::Config,
     ) -> Result<DeliverResult<P::Entity>, DriverError<S::Error>> {
         // Load current state
         let entity = self
@@ -282,8 +285,8 @@ impl<P: Persist, S: FlowStore<P>> Driver<P, S> {
         let bookmark =
             P::reconstruct(&entity, &ctx, &messages).map_err(DriverError::Reconstruct)?;
 
-        // Step the flow
-        let next = P::step(bookmark, response).map_err(|_| DriverError::Refused)?;
+        // Step the flow with the given config
+        let next = P::step(bookmark, response, config).map_err(|_| DriverError::Refused)?;
 
         // Mark the pending message as completed
         self.store

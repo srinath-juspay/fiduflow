@@ -1,6 +1,8 @@
 [workspace]
 resolver = "2"
-members = ["psp-flow", "driver-framework", "psp-app", "flow-macro", "psp-flow-dsl", "psp-persistence", "psp-persistence-sea"]
+members = ["psp-flow", "driver-framework", "psp-app", "flow-macro", "psp-persistence", "psp-persistence-sea"]
+exclude = ["psp-flow-dsl"]
+# psp-flow-dsl excluded temporarily - macro needs update for config parameter
 # store-framework excluded - uses rusqlite which conflicts with sea-orm's sqlx
 
 [workspace.package]

@@ -45,6 +45,52 @@ impl Event for CollectMpin { type Response = Mpin; }
 pub struct Notify { pub status: Status }
 impl Event for Notify { type Response = (); }
 
+// ---- High-value verification interactions -------------------------------------------
+
+/// OTP verification for high-value transactions.
+#[derive(Clone, Copy)]
+#[cfg_attr(feature = "runtime", derive(Debug, PartialEq, Eq))]
+pub struct AwaitOtp { pub payer: PayerId }
+#[derive(Clone, Copy)]
+#[cfg_attr(feature = "runtime", derive(Debug, PartialEq, Eq))]
+pub enum OtpResult {
+    Valid,
+    Invalid,
+    Timeout,
+}
+impl Event for AwaitOtp { type Response = OtpResult; }
+
+/// Manual approval for high-value transactions.
+#[derive(Clone, Copy)]
+#[cfg_attr(feature = "runtime", derive(Debug, PartialEq, Eq))]
+pub struct AwaitApproval { pub req: PayRequest }
+#[derive(Clone, Copy)]
+#[cfg_attr(feature = "runtime", derive(Debug, PartialEq, Eq))]
+pub enum ApprovalResult {
+    Approved,
+    Rejected,
+    Timeout,
+}
+impl Event for AwaitApproval { type Response = ApprovalResult; }
+
+// ---- Ops escalation -----------------------------------------------------------------
+
+/// Escalation to ops team for manual decision on deemed transactions.
+#[derive(Clone, Copy)]
+#[cfg_attr(feature = "runtime", derive(Debug, PartialEq, Eq))]
+pub struct EscalateToOps { pub txn_id: TxnId }
+#[derive(Clone, Copy)]
+#[cfg_attr(feature = "runtime", derive(Debug, PartialEq, Eq))]
+pub enum OpsDecision {
+    /// Ops decided to reverse the transaction.
+    Reverse,
+    /// Ops decided to retry/wait for resolution.
+    Retry,
+    /// Ops decided to mark as failed.
+    Fail,
+}
+impl Event for EscalateToOps { type Response = OpsDecision; }
+
 // ---- NPCI interactions --------------------------------------------------------------
 
 #[derive(Clone, Copy)]
@@ -96,10 +142,16 @@ pub enum AnyEvent {
     ShowError(ShowError),
     CollectMpin(CollectMpin),
     Notify(Notify),
+    // High-value verification
+    AwaitOtp(AwaitOtp),
+    AwaitApproval(AwaitApproval),
+    // NPCI interactions
     ReqPay(ReqPay),
     AwaitCallback(AwaitCallback),
     AwaitDeemedResolution(AwaitDeemedResolution),
     AwaitForcedReversal(AwaitForcedReversal),
+    // Ops escalation
+    EscalateToOps(EscalateToOps),
 }
 
 /// Any response, as data: what arrives from the outside world before it is decoded for
@@ -111,17 +163,32 @@ pub enum AnyResponse {
     Intent(RawIntent),
     Mpin(Mpin),
     Unit,
+    // High-value verification
+    Otp(OtpResult),
+    Approval(ApprovalResult),
+    // NPCI
     ReqPay(ReqPayResponse),
     Callback(Callback),
     Resolution(Resolution),
+    // Ops escalation
+    OpsDecision(OpsDecision),
 }
 
 impl AnyEvent {
     pub fn party(&self) -> Party {
         match self {
             AnyEvent::Init(_) => Party::System,
-            AnyEvent::GetPaymentIntent(_) | AnyEvent::ShowError(_) | AnyEvent::CollectMpin(_) | AnyEvent::Notify(_) => Party::User,
-            AnyEvent::ReqPay(_) | AnyEvent::AwaitCallback(_) | AnyEvent::AwaitDeemedResolution(_) | AnyEvent::AwaitForcedReversal(_) => Party::Npci,
+            AnyEvent::GetPaymentIntent(_)
+            | AnyEvent::ShowError(_)
+            | AnyEvent::CollectMpin(_)
+            | AnyEvent::Notify(_)
+            | AnyEvent::AwaitOtp(_)
+            | AnyEvent::AwaitApproval(_) => Party::User,
+            AnyEvent::ReqPay(_)
+            | AnyEvent::AwaitCallback(_)
+            | AnyEvent::AwaitDeemedResolution(_)
+            | AnyEvent::AwaitForcedReversal(_) => Party::Npci,
+            AnyEvent::EscalateToOps(_) => Party::System, // Ops is internal system
         }
     }
 

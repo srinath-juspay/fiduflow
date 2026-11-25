@@ -30,7 +30,7 @@ pub use psp_persistence::{
 pub use psp_persistence_sea::SeaFlowStore;
 
 // Re-export flow types
-pub use psp_flow::values::{PayerId, TxnId};
+pub use psp_flow::values::{FlowConfig, PayerId, TxnId};
 pub use psp_flow::{AnyEvent, AnyResponse, PayerPay, Terminal, Txn};
 
 use psp_flow::Mismatch;
@@ -45,6 +45,7 @@ impl Flow for PayFlow {
     type Done = Txn<Terminal>;
     type Event = AnyEvent;
     type Response = AnyResponse;
+    type Config = FlowConfig;
 
     fn initial(id: TxnId) -> PayerPay {
         psp_flow::machine::initial(id)
@@ -54,7 +55,7 @@ impl Flow for PayFlow {
         psp_flow::event(s)
     }
 
-    fn step(s: PayerPay, r: AnyResponse) -> Result<Next<PayerPay, Txn<Terminal>>, Refused> {
-        psp_flow::deliver(s, r).map_err(|Mismatch::ResponseMismatch| Refused::Mismatch)
+    fn step(s: PayerPay, r: AnyResponse, cfg: &FlowConfig) -> Result<Next<PayerPay, Txn<Terminal>>, Refused> {
+        psp_flow::deliver(s, r, cfg).map_err(|Mismatch::ResponseMismatch| Refused::Mismatch)
     }
 }

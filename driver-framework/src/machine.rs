@@ -17,11 +17,11 @@ pub trait Event {
 /// One pause in a flow: what it waits on, and how it consumes exactly that event's
 /// response. The associated `Event` pins the parameter type of `resume`, so a wait point
 /// cannot be resumed with anything but the answer to its own question. `S` is the flow's
-/// bookmark type and `D` its terminal value.
-pub trait WaitPoint<S, D> {
+/// bookmark type, `D` its terminal value, and `C` the config type (defaults to `()`).
+pub trait WaitPoint<S, D, C = ()> {
     type Event: Event;
     fn event(&self) -> Self::Event;
-    fn resume(self, r: <Self::Event as Event>::Response) -> Next<S, D>;
+    fn resume(self, r: <Self::Event as Event>::Response, cfg: &C) -> Next<S, D>;
 }
 
 pub trait Flow {
@@ -37,14 +37,16 @@ pub trait Flow {
     type Event: Debug;
     /// What the outside world answers.
     type Response: Debug;
+    /// Configuration that can affect state transitions. Use `()` for flows with no config.
+    type Config: Default + Copy + Debug;
 
     /// Create the initial state for a new flow instance.
     /// The initial state waits for the first response to configure the flow.
     fn initial(id: Self::Id) -> Self::State;
     /// Get the event that a bookmark is waiting on.
     fn event(s: &Self::State) -> Self::Event;
-    /// Consume a response at bookmark `s`. A refusal leaves the instance unchanged.
-    fn step(s: Self::State, r: Self::Response) -> Result<Next<Self::State, Self::Done>, Refused>;
+    /// Consume a response at bookmark `s` with the given config. A refusal leaves the instance unchanged.
+    fn step(s: Self::State, r: Self::Response, cfg: &Self::Config) -> Result<Next<Self::State, Self::Done>, Refused>;
 }
 
 /// Why `step` refused a response. Owned by the framework so every flow reports the same

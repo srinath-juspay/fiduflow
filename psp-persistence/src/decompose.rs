@@ -89,6 +89,41 @@ pub fn decompose(bookmark: &PayerPay) -> (EntitySnapshot, FlowContext, MessageRe
             (entity, ctx, message)
         }
 
+        // High-value verification wait points
+        PayerPay::AtAwaitOtp(w) => {
+            let entity = EntitySnapshot::Authenticated(AuthenticatedEntity {
+                id: w.txn.id,
+                payer: w.txn.data.payer,
+                intent: w.txn.data.intent,
+                mpin: w.txn.data.mpin,
+            });
+            // Request to user for OTP verification, expects async response
+            let message = MessageRecord::request_to_user_async(
+                "AwaitOtp",
+                serde_json::json!({ "payer": w.req.payer.0 }),
+            );
+            (entity, ctx, message)
+        }
+
+        PayerPay::AtAwaitApproval(w) => {
+            let entity = EntitySnapshot::Authenticated(AuthenticatedEntity {
+                id: w.txn.id,
+                payer: w.txn.data.payer,
+                intent: w.txn.data.intent,
+                mpin: w.txn.data.mpin,
+            });
+            // Request to user/ops for manual approval, expects async response
+            let message = MessageRecord::request_to_user_async(
+                "AwaitApproval",
+                serde_json::json!({
+                    "payer": w.req.payer.0,
+                    "payee": w.req.payee.0,
+                    "amount": w.req.amount.0,
+                }),
+            );
+            (entity, ctx, message)
+        }
+
         PayerPay::AtReqPay(w) => {
             let entity = EntitySnapshot::Authenticated(AuthenticatedEntity {
                 id: w.txn.id,
@@ -206,6 +241,30 @@ pub fn decompose(bookmark: &PayerPay) -> (EntitySnapshot, FlowContext, MessageRe
             (entity, ctx, message)
         }
 
+        // Ops escalation wait point
+        PayerPay::AtEscalateToOps(w) => {
+            let entity = EntitySnapshot::Deemed(DeemedEntity {
+                id: w.txn.id,
+                req: w.txn.data.req,
+            });
+            // Request to ops team for manual decision, expects async response
+            let message = MessageRecord {
+                id: None,
+                source: Actor::ThisSystem,
+                target: Actor::ThisSystem, // Ops is internal
+                method: Method::Request,
+                in_response_to: None,
+                expects_async: true,
+                message_type: "EscalateToOps".to_string(),
+                message_body: serde_json::json!({
+                    "txn_id": w.txn.id.0,
+                    "retries_remaining": w.retries_remaining
+                }),
+                status: MessageStatus::Pending,
+            };
+            (entity, ctx, message)
+        }
+
         PayerPay::AtNotifyConfirmed(w) => {
             let entity = EntitySnapshot::Deemed(DeemedEntity {
                 id: w.txn.id,
@@ -292,6 +351,9 @@ pub fn wait_point_name(bookmark: &PayerPay) -> &'static str {
         PayerPay::AtGetPaymentIntent(_) => "AtGetPaymentIntent",
         PayerPay::AtShowError(_) => "AtShowError",
         PayerPay::AtCollectMpin(_) => "AtCollectMpin",
+        // High-value verification
+        PayerPay::AtAwaitOtp(_) => "AtAwaitOtp",
+        PayerPay::AtAwaitApproval(_) => "AtAwaitApproval",
         PayerPay::AtReqPay(_) => "AtReqPay",
         PayerPay::AtNotifyRejected(_) => "AtNotifyRejected",
         PayerPay::AtAwaitCallback(_) => "AtAwaitCallback",
@@ -299,6 +361,8 @@ pub fn wait_point_name(bookmark: &PayerPay) -> &'static str {
         PayerPay::AtNotifyFailed(_) => "AtNotifyFailed",
         PayerPay::AtNotifyProcessing(_) => "AtNotifyProcessing",
         PayerPay::AtAwaitDeemed(_) => "AtAwaitDeemed",
+        // Ops escalation
+        PayerPay::AtEscalateToOps(_) => "AtEscalateToOps",
         PayerPay::AtNotifyConfirmed(_) => "AtNotifyConfirmed",
         PayerPay::AtNotifyDeemedReversed(_) => "AtNotifyDeemedReversed",
         PayerPay::AtNotifyReversalStart(_) => "AtNotifyReversalStart",
