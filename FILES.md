@@ -68,6 +68,12 @@ Value types as plain newtypes over integers: `PayerId`, `Vpa`, `Amount` in paise
 what the user typed, `ValidIntent` what survived validation, `PayRequest` what goes to
 NPCI. `validate_pay_intent` is the one pure decision of the flow.
 
+Also contains `FlowConfig`, `DeemedPolicy`, and `HighValueMode`: runtime configuration
+enums that parameterize flow behavior. `DeemedPolicy` controls what happens when a deemed
+transaction's deadline expires (wait, auto-reverse, or escalate to ops). `HighValueMode`
+controls additional verification for high-value transactions (standard, require OTP, or
+require manual approval). `HIGH_VALUE_THRESHOLD` is Rs 1,000 in paise.
+
 ### `psp-flow/src/entity.rs`
 The `UpiTxn` entity in the same shape as `loan.rs`: one struct per state (`Initiated`,
 `Authenticated`, `Submitted`, `Deemed`, `ReversalPending`, `Success`, `Failed`,
@@ -86,21 +92,30 @@ boundary, where a stored instance must say what it waits on and a response arriv
 data; `AnyEvent::party` and `is_user_notification` live there. There is no `accepts`: the
 pairing is in the types.
 
+New config-dependent events: `AwaitOtp` and `AwaitApproval` for high-value verification
+(responses: `OtpResult`, `ApprovalResult`), and `EscalateToOps` for ops escalation
+(response: `OpsDecision` with `Reverse`, `Retry`, or `Fail`).
+
 ### `psp-flow/src/machine.rs`
 The flow as a machine, and the file the whole second spike is about:
 
 * One struct per `Vis` node of the document's inlined tree (`AtAwaitCallback`,
   `AtNotifySuccess`, ...), carrying the locals live at that point, always the typed entity
-  handle and sometimes a little more. Each implements the framework's `WaitPoint` trait: an
-  associated `Event`, `event()` saying what it waits on, and `resume(r)` whose parameter
-  type is `<Self::Event as Event>::Response`, so a mismatched response is unrepresentable
-  inside the machine. `resume` is the `λ(response) → ...` of that node.
+  handle and sometimes a little more. Each implements `WaitPoint<PayerPay, Txn<Terminal>,
+  FlowConfig>`: an associated `Event`, `event()` saying what it waits on, and `resume(r,
+  cfg)` whose parameter type is `<Self::Event as Event>::Response`, so a mismatched
+  response is unrepresentable inside the machine. `resume` is the `λ(response) → ...` of
+  that node.
 * `PayerPay` wraps the wait points so a stored instance is one value; `Next` is the
   framework's `Next<PayerPay, Txn<Terminal>>`.
-* `event(&s)` and `deliver(s, r)` are the runtime boundary: `deliver` decodes an
-  `AnyResponse` for the bookmark's event and calls `resume`; it is the only place a
-  `Mismatch` can occur. The DSL would generate both.
-* `start` builds the entry state.
+* `event(&s)` and `deliver(s, r, cfg)` are the runtime boundary: `deliver` decodes an
+  `AnyResponse` for the bookmark's event and calls `resume` with the config; it is the
+  only place a `Mismatch` can occur.
+* `initial` builds the entry state; `start` is deprecated.
+
+New config-dependent wait points: `AtAwaitOtp`, `AtAwaitApproval` (triggered by
+`HighValueMode`), and `AtEscalateToOps` (triggered by `DeemedPolicy::Escalate`). The
+`AtEscalateToOps` wait point carries `retries_remaining: u8` to bound ops retry loops.
 
 The runtime saves `PayerPay` before performing `event(&s)`, loads it when the response
 arrives, and calls `deliver`. Nothing else ever runs.
@@ -313,11 +328,11 @@ functions, the boundary `machine.event` and `machine.deliver`, `machine.start`, 
 `entity.TxnAuthenticated.submit`.
 
 ### `psp-lean/PspProofs/Pay.lean`
-The proofs. Defines `Steps s n` (wait point `s`, resumed with a response of its event's
-type, moves to `n`; one constructor per wait point) and `Reaches s evs t` (a complete run
-from `s` performing interactions `evs` and ending in terminal entity `t`), then proves,
-against the generated `resume` functions, the shape properties and two entity value
-properties:
+The proofs. Defines `Steps cfg s n` (wait point `s`, resumed with a response of its event's
+type under config `cfg`, moves to `n`; one constructor per wait point) and `Reaches cfg s
+evs t` (a complete run from `s` performing interactions `evs` and ending in terminal entity
+`t`), both parameterized by `FlowConfig`. All theorems use universal quantification
+(`∀ cfg : FlowConfig, ...`) to prove properties for all 9 config combinations.
 
 | Theorem | Property |
 |---|---|
@@ -329,11 +344,16 @@ properties:
 | `P6a_id_preserved` | entity value property: the terminal entity's id is the one the flow started with |
 | `P6b_from_start` | entity value property: any amount in a terminal state is non-zero and at most the cap; an invariant `Inv` on the bookmark's entity data, preserved by every step |
 
+The `measure` function is config-aware: `AtEscalateToOps` includes `retries_remaining` in
+its bound. Key helper lemmas for handling Aeneas-generated bind expressions:
+- `u8_sub_one_ok`: subtraction succeeds when the value is positive
+- `bind_ok_inv`: extracts values from monadic bind expressions
+- `atEscalateToOps_no_done`: proves the ops escalation loop never terminates directly
+
 A local `case_bash` tactic does every single-step lemma: `cases` on `Steps` gives one case
 per wait point with a typed response, then `split` through the generated `if`/`match`
-structure, substitute, simplify. There are fifteen cases per lemma, not ninety, because the
-mismatch arms no longer exist. All five theorems
-depend only on Lean's standard axioms (`propext`, `Classical.choice`, `Quot.sound`).
+structure, substitute, simplify. There are nineteen cases per lemma (up from fifteen due
+to new wait points). All theorems depend only on Lean's standard axioms.
 
 ---
 

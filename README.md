@@ -43,12 +43,16 @@ scripts/translate-psp.sh             # Rust -> LLBC -> Lean, then `lake build` i
 
 What the proofs say (`psp-lean/PspProofs/Pay.lean`), all about the generated code:
 
+**All properties are proved universally for all `FlowConfig` values** (3 `DeemedPolicy` ×
+3 `HighValueMode` = 9 combinations). The proofs use `∀ cfg : FlowConfig, ...` so they
+cover every possible runtime configuration.
+
 | Property | Statement | Proof |
 |---|---|---|
 | P1 user always notified | every run ends with a `Notify`/`ShowError` event | case bash on `step` + induction on runs |
 | P2 MPIN at most once | `CollectMpin` appears at most once in any run from `start` | budget invariant per state |
 | P3 all responses handled | each wait point's `resume` takes exactly its event's response type | a typing fact, no theorem needed; `deliver_sound` shows the boundary only ever calls `resume` |
-| P4 terminates | a run from `s` has at most `measure s + 1` interactions | ranking function decreases on every `Wait` |
+| P4 terminates | a run from `s` has at most `measure s + 1` interactions; `measure` is config-aware (includes retry counter for ops escalation) | ranking function decreases on every `Wait` |
 | P5 NPCI needs auth | `ReqPay` is only issued from `AtReqPay`, which holds a `Txn Authenticated` | by the constructor type |
 | P6a id preserved | the terminal entity has the id the flow started with | no transition touches `id` |
 | P6b amount validated | every amount reaching a terminal state is non-zero and within the cap | data invariant carried through every `Wait` |

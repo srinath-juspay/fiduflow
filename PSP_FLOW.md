@@ -73,6 +73,9 @@ Each interaction is defined together with the type of its response.
 | User | `ShowError` | reason | acknowledgement |
 | User | `CollectMpin` | payer, validated intent | MPIN |
 | User | `Notify` | status | acknowledgement |
+| User | `AwaitOtp` | payer | `Valid`, `Invalid`, `Timeout` |
+| User | `AwaitApproval` | pay request | `Approved`, `Rejected`, `Timeout` |
+| System | `EscalateToOps` | txn_id | `Reverse`, `Retry`, `Fail` |
 | NPCI | `ReqPay` | pay request | `Ack` or `Rejected { reason }` |
 | NPCI | `AwaitCallback` | timeout 30 s | `Success { debit_ref, credit_ref }`, `Failed { reason }`, `Deemed`, `Timeout` |
 | NPCI | `AwaitDeemedResolution` | deadline T+3 days | `DeemedSuccess { credit_ref }`, `DeemedFailed`, `DeadlineExpired` |
@@ -88,6 +91,43 @@ Pure decisions used by the flow:
   validated intent.
 - `build_req_pay`: builds the NPCI request from an *authenticated* transaction. It must not
   be possible to build a request from anything less.
+
+## 4a. Flow Configuration
+
+The flow is parameterized by a `FlowConfig` passed to each `deliver()` call. The config can
+change mid-flow, allowing runtime policy decisions without modifying the state machine.
+
+### DeemedPolicy
+
+Controls what happens when a deemed transaction's deadline expires:
+
+| Value | Behavior |
+|---|---|
+| `WaitForResolution` | Default. Wait for NPCI, then escalate to forced reversal. |
+| `AutoReverse` | Immediately trigger reversal notification. |
+| `Escalate` | Escalate to ops team for manual decision (up to `MAX_OPS_RETRIES` retries). |
+
+### HighValueMode
+
+Controls additional verification for high-value transactions (amount > Rs 1,000):
+
+| Value | Behavior |
+|---|---|
+| `Standard` | Default. No additional verification. |
+| `RequireOtp` | Require OTP verification after MPIN. |
+| `RequireApproval` | Require manual approval before NPCI submission. |
+
+### Configuration-Dependent Wait Points
+
+| Wait Point | Triggered When | Event |
+|---|---|---|
+| `AtAwaitOtp` | High-value + `RequireOtp` | `AwaitOtp` → `OtpResult` |
+| `AtAwaitApproval` | High-value + `RequireApproval` | `AwaitApproval` → `ApprovalResult` |
+| `AtEscalateToOps` | Deadline expired + `Escalate` | `EscalateToOps` → `OpsDecision` |
+
+The `AtEscalateToOps` wait point carries a `retries_remaining: u8` counter. If ops returns
+`Retry` and retries remain, the flow loops back with a decremented counter. When retries are
+exhausted, it proceeds to reversal.
 
 ## 5. Subflows
 
@@ -107,6 +147,30 @@ collect_intent(payer) =
 
 ```
 authenticate_payer() = Vis(User.CollectMPIN,  λ(mpin) → Ret(mpin))
+```
+
+### `high_value_verification`: additional checks for large transactions
+
+For transactions exceeding `HIGH_VALUE_THRESHOLD` (Rs 1,000), the flow may require additional
+verification depending on `cfg.high_value_mode`:
+
+```
+high_value_verification(txn, req, cfg) =
+  match (is_high_value(req.amount), cfg.high_value_mode) {
+    (true, RequireOtp) →
+      Vis(User.AwaitOtp { payer: req.payer },  λ(otp_result) →
+        match otp_result {
+          Valid → Ret(req),
+          Invalid | Timeout → Vis(User.Notify { status: "Risk rejected" },  λ(_) → Ret(TxnState::Failed))
+        }),
+    (true, RequireApproval) →
+      Vis(User.AwaitApproval { req },  λ(approval) →
+        match approval {
+          Approved → Ret(req),
+          Rejected | Timeout → Vis(User.Notify { status: "Risk rejected" },  λ(_) → Ret(TxnState::Failed))
+        }),
+    _ → Ret(req)
+  }
 ```
 
 ### `submit_to_npci`: send the request and handle the synchronous answer
@@ -140,17 +204,39 @@ npci_callback() =
 
 ### `deemed_resolution`: handle the DEEMED state until terminal
 
-Reused by both the `Deemed` and `Timeout` branches.
+Reused by both the `Deemed` and `Timeout` branches. The behavior on `DeadlineExpired` depends
+on the `DeemedPolicy` in effect:
 
 ```
-deemed_resolution() =
+deemed_resolution(cfg) =
   Vis(NPCI.AwaitDeemedResolution { deadline: T+3 },  λ(resolution) →
     Tau(match resolution {
       NPCI.DeemedSuccess { credit_ref } →
         Vis(User.Notify { status: "Payment confirmed" },  λ(_) → Ret(TxnState::Success { credit_ref })),
       NPCI.DeemedFailed →
         Vis(User.Notify { status: "Payment reversed" },  λ(_) → Ret(TxnState::Reversed)),
-      NPCI.DeemedDeadlineExpired → forced_reversal()
+      NPCI.DeemedDeadlineExpired → match cfg.deemed_policy {
+        WaitForResolution → forced_reversal(),
+        AutoReverse → Vis(User.Notify { status: "Payment reversed" },  λ(_) → Ret(TxnState::Reversed)),
+        Escalate → ops_escalation()
+      }
+    }))
+```
+
+### `ops_escalation`: manual decision by operations team
+
+When `DeemedPolicy::Escalate` is in effect, the flow escalates to operations rather than
+auto-reversing. Ops can retry (waiting for resolution), reverse, or fail the transaction.
+
+```
+ops_escalation(retries = MAX_OPS_RETRIES) =
+  Vis(System.EscalateToOps { txn_id },  λ(decision) →
+    Tau(match decision {
+      Reverse → forced_reversal(),
+      Fail → Vis(User.Notify { status: "Payment reversed" },  λ(_) → Ret(TxnState::Reversed)),
+      Retry → if retries > 0
+                then ops_escalation(retries - 1)
+                else forced_reversal()
     }))
 ```
 
@@ -241,7 +327,12 @@ PayerPSP_Pay(payer_id) =
 
 Fifteen `Vis` nodes, seven `Ret` leaves.
 
-### The seven paths
+### The paths
+
+The number of paths depends on the configuration. With the default config (`Standard` +
+`WaitForResolution`), there are 7 paths. Additional paths exist for other config combinations.
+
+**Base paths (all configs):**
 
 | # | Path | Terminal |
 |---|---|---|
@@ -251,19 +342,39 @@ Fifteen `Vis` nodes, seven `Ret` leaves.
 | 4 | ack → callback failed → notify | `Failed` |
 | 5 | ack → deemed or timeout → notify → deemed success → notify | `Success` |
 | 6 | ack → deemed or timeout → notify → deemed failed → notify | `Reversed` |
-| 7 | ack → deemed or timeout → notify → deadline expired → notify → forced reversal → notify | `Reversed` |
+
+**Config-dependent paths (on deadline expiry):**
+
+| Config | Path | Terminal |
+|---|---|---|
+| `WaitForResolution` | deadline expired → notify → forced reversal → notify | `Reversed` |
+| `AutoReverse` | deadline expired → notify | `Reversed` |
+| `Escalate` | deadline expired → ops:Reverse → forced reversal → notify | `Reversed` |
+| `Escalate` | deadline expired → ops:Fail → notify | `Reversed` |
+| `Escalate` | deadline expired → ops:Retry (loop up to 3×) → reversal | `Reversed` |
+
+**High-value paths (`RequireOtp` or `RequireApproval`):**
+
+| Mode | Path | Terminal |
+|---|---|---|
+| `RequireOtp` | OTP invalid/timeout → notify | `Failed` |
+| `RequireApproval` | Approval rejected/timeout → notify | `Failed` |
 
 ## 7. Properties the flow must have
 
 Each of these is a requirement, not an observation. They must hold for every path, and
 they must be proved about the code that runs, not about a separate model.
 
+**All properties are proved universally for all possible `FlowConfig` values.** The Lean
+proofs use universal quantification (`∀ cfg : FlowConfig, ...`) so a single proof covers
+all 9 combinations of `DeemedPolicy` × `HighValueMode`.
+
 | Id | Property | What it prevents |
 |---|---|---|
 | P1 | The user is always told the outcome: every path to a terminal state passes through `User.Notify` or `User.ShowError`. | silent failures, double payments |
 | P2 | The MPIN is collected at most once per transaction, and never on the abandoned path. | unauthorised debit, replay |
 | P3 | Every response an interaction can produce is handled. | dropped transactions |
-| P4 | Every transaction reaches a terminal state in a bounded number of interactions: no cycles, every wait has a deadline. | stuck money |
+| P4 | Every transaction reaches a terminal state in a bounded number of interactions: no cycles, every wait has a deadline. The bound is config-dependent (ops retries add up to `MAX_OPS_RETRIES` extra steps). | stuck money |
 | P5 | NPCI is never asked to pay without authentication: `NPCI.ReqPay` is only reachable after `User.CollectMPIN`. | unauthorised payment |
 | P6a | The transaction id is preserved from start to terminal state. | records attached to the wrong transaction |
 | P6b | Any amount that reaches a terminal state passed validation: non-zero and within the cap. | NPCI or the ledger ever seeing an invalid amount |
@@ -310,11 +421,15 @@ inherited by every flow that reuses it.
 | Entity states and data (§3) | `psp-flow/src/entity.rs` | round trip in `psp-app/tests/persistence.rs` | |
 | Transitions only inside the flow (§3) | `Txn<S>` methods, called only from `resume` | | |
 | Refined values (§3) | `psp-flow/src/values.rs` | | |
+| Flow configuration (§4a) | `psp-flow/src/values.rs`: `FlowConfig`, `DeemedPolicy`, `HighValueMode` | | universally quantified proofs |
 | Interactions co-defined with responses (§4) | `psp-flow/src/events.rs`, `trait Event { type Response }` | | |
+| New interactions (§4) | `AwaitOtp`, `AwaitApproval`, `EscalateToOps` in `events.rs` | | |
 | `validate_pay_intent` (§4) | `psp-flow/src/values.rs` | | used in `P6b` |
 | `build_req_pay` only from an authenticated transaction (§4) | method on `Txn<Authenticated>` | | `P5_reqpay_only_when_authenticated` |
 | The flow, one wait point per `Vis` (§5, §6) | `psp-flow/src/machine.rs`: `At*` structs with `event`/`resume` | demo `psp-app/src/bin/demo.rs` | |
-| Seven paths (§6) | | scenarios in tests and demo cover paths 1, 3, 6, 7 | |
+| Config-dependent wait points | `AtAwaitOtp`, `AtAwaitApproval`, `AtEscalateToOps` in `machine.rs` | | measure includes `retries_remaining` |
+| Ops retry bound (§5) | `MAX_OPS_RETRIES = 3` in `machine.rs` | | `u8_sub_one_ok`, `wait_decreases` |
+| Config-dependent paths (§6) | | | all configs covered by `∀ cfg` |
 | P1 | | | `P1_user_notified` |
 | P2 | | | `P2_from_start` |
 | P3 | `resume` takes exactly its event's response type | | typing fact; `deliver_sound` for the boundary |
